@@ -1,13 +1,14 @@
 import * as THREE from 'three/webgpu';
 import WebGPU from 'three/addons/capabilities/WebGPU.js';
 import { GpuParticleSystem } from '../atmosphere/GpuParticleSystem';
-import { createCameraRig, type CameraRig } from '../camera/createCameraRig';
+import { createCameraRig, defaultCameraPosition, type CameraRig } from '../camera/createCameraRig';
 import { CONFIG } from '../config';
 import { Earth } from '../earth/Earth';
 import { EarthSection } from '../earth/EarthSection';
 import { OrientationGuides } from '../earth/OrientationGuides';
 import { SectionSwitch } from '../ui/SectionSwitch';
-import { createStarField } from '../scene/createStarField';
+import { LibraryStudy } from '../scene/LibraryStudy';
+import { DeskControls } from '../ui/DeskControls';
 import { CellSelection } from '../camera/CellSelection';
 
 export class App {
@@ -18,6 +19,8 @@ export class App {
   private readonly particles = new GpuParticleSystem();
   private readonly globe = new THREE.Group();
   private readonly rotatingGlobe = new THREE.Group();
+  private readonly study = new LibraryStudy();
+  private readonly deskControls: DeskControls;
   private spinAngle = 0;
   private previousFrameTime = 0;
   private readonly earthSection = new EarthSection();
@@ -36,6 +39,8 @@ export class App {
   private readonly savedCameraPosition = new THREE.Vector3();
   private readonly cameraStart = new THREE.Vector3();
   private readonly cameraDestination = new THREE.Vector3();
+  private readonly targetStart = new THREE.Vector3();
+  private readonly targetDestination = new THREE.Vector3();
   private running = false;
 
   constructor(private readonly container: HTMLElement) {
@@ -47,6 +52,8 @@ export class App {
     this.renderer.setClearColor(CONFIG.renderer.background, 1);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.setPixelRatio(this.pixelRatio);
     this.renderer.setSize(container.clientWidth, container.clientHeight);
@@ -65,8 +72,8 @@ export class App {
     this.resetButton.innerHTML = '<span class="reset-emblem" aria-hidden="true">↺</span><span class="switch-label">Alaphelyzet</span>';
     this.resetButton.addEventListener('click', this.resetView);
     this.instrumentControls.append(this.sectionSwitch.element, this.coriolisSwitch.element, this.resetButton);
-    container.append(this.instrumentControls);
     this.configureScene();
+    this.deskControls = new DeskControls(container, this.instrumentControls, this.study.controlAnchor);
     this.cellSelection = new CellSelection(
       this.renderer.domElement, this.cameraRig.camera, this.globe,
       () => this.sectionEnabled, () => this.running && !this.transitioning,
@@ -101,6 +108,8 @@ export class App {
     this.coriolisSwitch.dispose();
     this.resetButton.removeEventListener('click', this.resetView);
     this.instrumentControls.remove();
+    this.deskControls.dispose();
+    this.study.dispose();
     this.earth.dispose();
     this.particles.dispose();
     this.scene.traverse((object) => {
@@ -117,14 +126,26 @@ export class App {
   }
 
   private configureScene(): void {
-    this.scene.add(createStarField());
+    this.scene.add(this.study);
+    this.scene.background = new THREE.Color(0x030706);
+    this.scene.fog = new THREE.FogExp2(0x030706, 0.045);
 
     // Faint library-room fill: preserve readable land on the night side.
-    const ambient = new THREE.AmbientLight(0xa6a19a, 0.20);
-    const sun = new THREE.DirectionalLight(0xfff0d4, 3.4);
-    // Side lighting exposes a clear terminator with a fixed world-space sun.
-    sun.position.set(-6, 1.8, 1.6);
-    this.scene.add(ambient, sun);
+    const ambient = new THREE.AmbientLight(0xaba18b, 0.22);
+    const sun = new THREE.DirectionalLight(0xffd6a1, 2.8);
+    // The old fixed sunlight now comes from the visible reading lamp.
+    sun.position.copy(this.study.lampPosition);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.camera.left = -5; sun.shadow.camera.right = 5;
+    sun.shadow.camera.top = 4; sun.shadow.camera.bottom = -4;
+    sun.shadow.camera.near = 0.1; sun.shadow.camera.far = 18;
+    sun.shadow.normalBias = 0.025;
+    sun.shadow.intensity = 0.7;
+    sun.shadow.radius = 3;
+    const lampPool = new THREE.PointLight(0xffc47c, 14, 12, 2);
+    lampPool.position.copy(this.study.lampPosition);
+    this.scene.add(ambient, sun, lampPool);
 
     this.globe.rotation.z = (CONFIG.earth.axialTiltDegrees * Math.PI) / 180;
     this.rotatingGlobe.add(this.earth, this.particles);
@@ -145,6 +166,7 @@ export class App {
     this.updateSectionTransition();
     this.cameraRig.controls.update();
     this.renderer.render(this.scene, this.cameraRig.camera);
+    this.deskControls.render(this.cameraRig.camera);
   };
 
   private setSectionEnabled = (enabled: boolean): void => {
@@ -154,13 +176,16 @@ export class App {
     this.transitionFrom = this.sectionProgress;
     this.transitionStarted = performance.now();
     this.cameraStart.copy(camera.position);
+    this.targetStart.copy(controls.target);
+    this.targetDestination.set(0, enabled ? 0 : CONFIG.camera.targetHeight, 0);
     this.cameraDestination.copy(enabled
       ? new THREE.Vector3(0, 0, this.sectionCameraDistance)
       : this.savedCameraPosition);
     controls.autoRotate = false;
+    controls.maxPolarAngle = enabled ? Math.PI / 2 : 1.45;
     controls.maxDistance = enabled
       ? Math.max(CONFIG.camera.maxDistance, this.sectionCameraDistance * 1.5)
-      : CONFIG.camera.maxDistance;
+      : Math.max(CONFIG.camera.maxDistance, this.cameraDestination.length() * 1.5);
     controls.enabled = false;
     this.transitioning = true;
   };
@@ -169,9 +194,9 @@ export class App {
     this.selectedCell = -1;
     this.particles.setSelectedCell(-1);
     // Restore the initial globe view; preserve the atmospheric/Coriolis state.
-    this.savedCameraPosition.set(0.1, 0.15, CONFIG.camera.distance);
+    const initial = defaultCameraPosition(this.cameraRig.camera.aspect);
+    this.savedCameraPosition.set(initial.x, initial.y, initial.z);
     this.sectionSwitch.setEnabled(false);
-    this.cameraRig.controls.target.set(0, 0, 0);
   };
 
   private updateSectionTransition(): void {
@@ -186,6 +211,7 @@ export class App {
     this.earthSection.visible = !this.earth.visible;
     this.orientationGuides.setSectionVisible(this.earthSection.visible);
     this.cameraRig.camera.position.lerpVectors(this.cameraStart, this.cameraDestination, eased);
+    this.cameraRig.controls.target.lerpVectors(this.targetStart, this.targetDestination, eased);
     if (t === 1) {
       this.transitioning = false;
       this.cameraRig.controls.enabled = true;
@@ -202,6 +228,7 @@ export class App {
     this.cameraRig.camera.updateProjectionMatrix();
     this.renderer.setPixelRatio(this.pixelRatio);
     this.renderer.setSize(width, height);
+    this.deskControls.resize(width, height);
     if (this.sectionEnabled) {
       this.cameraRig.camera.position.set(0, 0, this.sectionCameraDistance);
       this.cameraDestination.copy(this.cameraRig.camera.position);
@@ -214,8 +241,8 @@ export class App {
   private get sectionCameraDistance(): number {
     const aspect = this.container.clientWidth / Math.max(1, this.container.clientHeight);
     // Reserve margin for the full atmospheric cross-section and the brass lever.
-    return 1.58 / (Math.tan(THREE.MathUtils.degToRad(CONFIG.camera.fieldOfView / 2))
-      * Math.min(1, aspect));
+    return Math.max(7.3, 1.85 / (Math.tan(THREE.MathUtils.degToRad(CONFIG.camera.fieldOfView / 2))
+      * Math.min(1, aspect)));
   }
 
   private showWebGpuError(): void {
