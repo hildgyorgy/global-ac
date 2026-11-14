@@ -10,8 +10,8 @@ export const CONFIG = {
     radius: 1,
     axialTiltDegrees: -23.4,
     rotationRadians: -0.32,
-    // Same angular pace as the former OrbitControls autoRotateSpeed = 0.18.
-    spinRadiansPerSecond: (Math.PI * 2 / 60) * 0.18,
+    // One full rotation in about 4 minutes 27 seconds.
+    spinRadiansPerSecond: (Math.PI * 2 / 60) * 0.225,
   },
   atmosphere: {
     cellParticleCounts,
