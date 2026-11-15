@@ -54,7 +54,7 @@ export class DeskControls {
     this.addTitle();
     const buttons = [...element.querySelectorAll<HTMLButtonElement>('button')];
     buttons.forEach((button, index) =>
-      this.addInstrument(button, (index - (buttons.length - 1) / 2) * 1.55),
+      this.addInstrument(button, (index - (buttons.length - 1) / 2) * 1.45),
     );
     canvas.addEventListener('pointerdown', this.down, true);
     window.addEventListener('pointermove', this.move, true);
@@ -152,11 +152,11 @@ export class DeskControls {
       shape.closePath();
       return new THREE.ShapeGeometry(shape, 32);
     };
-    const rim = new THREE.Mesh(pill(1.35, 0.36), this.brass.clone());
+    const rim = new THREE.Mesh(pill(1.25, 0.33), this.brass.clone());
     rim.position.set(x, 0, 0.001);
     this.group.add(rim);
     const face = new THREE.Mesh(
-      pill(1.3, 0.31),
+      pill(1.2, 0.28),
       new THREE.MeshStandardNodeMaterial({
         color: 0x100f0b,
         roughness: 0.55,
@@ -169,11 +169,12 @@ export class DeskControls {
     this.group.add(face);
     const label = this.lettering(
       (button.textContent ?? '').toUpperCase(),
-      1.1,
-      0.29,
+      1.02,
+      0.265,
       180,
       'PROJECTION',
     );
+    (label.material as THREE.MeshStandardNodeMaterial).emissive.setHex(0xc49e63);
     label.position.set(x, 0, 0.005);
     const item: Instrument = {
       button,
@@ -209,7 +210,7 @@ export class DeskControls {
         item.light * 0.85 +
         (document.activeElement === item.button ? 0.7 : 0);
       const label = item.label.material as THREE.MeshStandardNodeMaterial;
-      label.emissiveIntensity = 0.3 + darkRoom * 0.65 + item.light * 1.7;
+      label.emissiveIntensity = 0.95 + darkRoom * 0.2 + item.light * 1.5;
       label.color.setScalar(0.72 + item.light * 0.28);
     }
   }

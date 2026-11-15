@@ -16,7 +16,7 @@ import { LibraryStudy } from '../scene/LibraryStudy';
 import { DeskControls } from '../ui/DeskControls';
 import { CellSelection } from '../camera/CellSelection';
 import { SeasonDial } from '../ui/SeasonDial';
-import { SEASON_MODEL, seasonYaw, solarKeyPosition } from '../scene/SeasonModel';
+import { seasonYaw, solarKeyPosition } from '../scene/SeasonModel';
 
 export class App {
   private readonly scene = new THREE.Scene();
@@ -30,7 +30,6 @@ export class App {
   private readonly roomLights: { light: THREE.Light; intensity: number }[] = [];
   private readonly deskControls: DeskControls;
   private readonly seasonDial: SeasonDial;
-  private seasonTarget = 0;
   private seasonProgress = 0;
   private spinAngle = 0;
   private previousFrameTime = 0;
@@ -116,7 +115,7 @@ export class App {
       occluder: this.globe,
       canInteract: () => this.running && !this.sectionEnabled && !this.transitioning,
       onChange: (progress) => {
-        this.seasonTarget = progress;
+        this.seasonProgress = progress;
       },
     });
     this.instrumentControls.append(this.seasonDial.element);
@@ -235,7 +234,7 @@ export class App {
     this.particles.setSpinAngle(this.spinAngle);
     this.particles.compute(this.renderer);
     this.updateSectionTransition();
-    this.updateSeason(delta);
+    this.updateSeason();
     // The scripted transition owns the camera until both phases finish.
     // OrbitControls would otherwise clamp the front-facing camera as soon
     // as the reverse toggle restores the globe's polar-angle limit.
@@ -244,12 +243,7 @@ export class App {
     this.renderer.render(this.scene, this.cameraRig.camera);
   };
 
-  private updateSeason(delta: number): void {
-    this.seasonProgress +=
-      (this.seasonTarget - this.seasonProgress) *
-      (1 - Math.exp(-delta / SEASON_MODEL.responseSeconds));
-    if (Math.abs(this.seasonTarget - this.seasonProgress) < 0.0001)
-      this.seasonProgress = this.seasonTarget;
+  private updateSeason(): void {
     const yaw = seasonYaw(this.seasonProgress);
     const shortYaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
     // The abstract meridional chart keeps its canonical readable orientation.

@@ -33,7 +33,16 @@ test('the fader follows a front semicircle and maps ray hits back to its value',
   for (let i = 0; i <= 100; i++) {
     const progress = i / 100;
     const [x, z] = seasonHandlePosition(progress);
-    assert.ok(z >= 0);
+    const yaw = seasonYaw(progress);
+    const southX = Math.sin((CONFIG.earth.axialTiltDegrees * Math.PI) / 180) * Math.cos(yaw);
+    const southZ = -Math.sin((CONFIG.earth.axialTiltDegrees * Math.PI) / 180) * Math.sin(yaw);
+    assert.ok(Math.abs(x * southZ - z * southX) < 1e-12);
+    assert.ok(x * southX + z * southZ > 0);
+    const verticalDrop =
+      CONFIG.presentation.globeHeight - SEASON_MODEL.anchorHeight - SEASON_MODEL.handleHeight;
+    const axisScale = verticalDrop / Math.cos((CONFIG.earth.axialTiltDegrees * Math.PI) / 180);
+    assert.ok(Math.abs(x - southX * axisScale) < 1e-12);
+    assert.ok(Math.abs(z - southZ * axisScale) < 1e-12);
     assert.ok(Math.abs(Math.hypot(x, z) - SEASON_MODEL.trackRadius) < 1e-12);
     assert.ok(Math.abs(seasonProgressFromPoint(x, z) - progress) < 1e-12);
   }

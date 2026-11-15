@@ -1,6 +1,11 @@
 import * as THREE from 'three/webgpu';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { SEASON_MODEL, seasonHandlePosition, seasonProgressFromPoint } from '../scene/SeasonModel';
+import {
+  SEASON_MODEL,
+  seasonHandlePosition,
+  seasonProgressFromPoint,
+  seasonYaw,
+} from '../scene/SeasonModel';
 
 interface SeasonDialOptions {
   anchor: THREE.Group;
@@ -42,12 +47,8 @@ export class SeasonDial {
     this.element.disabled = true;
     this.element.setAttribute('aria-label', 'Season: December to June');
     const points = Array.from({ length: 97 }, (_, i) => {
-      const angle = (i * Math.PI) / 96;
-      return new THREE.Vector3(
-        Math.cos(angle) * SEASON_MODEL.trackRadius,
-        0,
-        Math.sin(angle) * SEASON_MODEL.trackRadius,
-      );
+      const [x, z] = seasonHandlePosition(i / 96);
+      return new THREE.Vector3(x, 0, z);
     });
     const path = new THREE.CatmullRomCurve3(points);
     const rail = new THREE.Mesh(
@@ -112,7 +113,7 @@ export class SeasonDial {
 
   private updateHandle(): void {
     const [x, z] = seasonHandlePosition(this.value);
-    this.knob.position.set(x, 0.045, z);
+    this.knob.position.set(x, SEASON_MODEL.handleHeight, z);
     this.knob.rotation.y = -Math.atan2(z, x);
     this.element.setAttribute(
       'aria-valuetext',
@@ -135,7 +136,7 @@ export class SeasonDial {
     );
     this.raycaster.setFromCamera(this.pointer, camera);
     anchor.updateWorldMatrix(true, false);
-    const origin = anchor.getWorldPosition(new THREE.Vector3());
+    const origin = anchor.localToWorld(new THREE.Vector3(0, SEASON_MODEL.handleHeight, 0));
     const normal = new THREE.Vector3(0, 1, 0).transformDirection(anchor.matrixWorld);
     this.plane.setFromNormalAndCoplanarPoint(normal, origin);
     if (!this.raycaster.ray.intersectPlane(this.plane, this.point)) return false;
@@ -161,7 +162,7 @@ export class SeasonDial {
     this.options.anchor.worldToLocal(this.point);
     return (
       !covered &&
-      this.point.z >= -0.14 &&
+      this.point.x * Math.sin(seasonYaw(0)) + this.point.z * Math.cos(seasonYaw(0)) >= -0.14 &&
       Math.abs(Math.hypot(this.point.x, this.point.z) - SEASON_MODEL.trackRadius) < 0.16
     );
   }

@@ -1,8 +1,10 @@
 # Season dial
 
-A curved brass fader follows the front half of the levitation disk. DECEMBER
-is on the left and JUNE on the right; the central engraved Sun and the small
-Earth on the grip make this a schematic half-orbit instrument.
+A curved brass fader follows the near rim of the levitation disk. DEC, MARCH
+and JUNE are larger brass inlays in the surrounding tabletop. The central
+engraved Sun and the small Earth on the grip make this a schematic half-orbit
+instrument. The extended south axis intersects the grip centre throughout the
+arc; the grip and globe use the same angle with no follow delay.
 
 Drag the grip or tap the rail. Keyboard users can tab to the equivalent native
 range: arrows change the setting, Page Up/Down take larger steps, and Home/End

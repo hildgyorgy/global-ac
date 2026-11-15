@@ -1,6 +1,6 @@
 import * as THREE from 'three/webgpu';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { SEASON_MODEL } from './SeasonModel';
+import { SEASON_MODEL, seasonHandlePosition } from './SeasonModel';
 
 const DESK_Y = -1.86;
 
@@ -52,7 +52,7 @@ export class LibraryStudy extends THREE.Group {
     for (const z of [-2.3, -1.1, 0.1, 1.3, 2.5])
       this.box(10, 0.002, 0.008, seam, 0, DESK_Y + 0.001, z);
     this.createLevitationPlate();
-    this.seasonAnchor.position.y = DESK_Y + 0.085;
+    this.seasonAnchor.position.y = SEASON_MODEL.anchorHeight;
     this.add(this.seasonAnchor);
     this.createLamp();
     this.createParchment(-2.45, 1.05, -0.23);
@@ -240,16 +240,6 @@ export class LibraryStudy extends THREE.Group {
       ctx.fillStyle = '#c5a165';
       ctx.fillText('SOL', 0, 173);
       ctx.globalAlpha = 1;
-      ctx.font = '34px Georgia';
-      for (const [name, x] of [
-        ['DECEMBER', -330],
-        ['JUNE', 330],
-      ] as const) {
-        ctx.fillStyle = '#29291e';
-        ctx.fillRect(x - 120, 112, 240, 50);
-        ctx.fillStyle = '#c5a165';
-        ctx.fillText(name, x, 149);
-      }
     });
     const face = new THREE.Mesh(
       new THREE.CircleGeometry(1.205, 128),
@@ -270,6 +260,37 @@ export class LibraryStudy extends THREE.Group {
     ring.rotation.x = Math.PI / 2;
     ring.position.y = DESK_Y + 0.057;
     this.add(ring);
+    // Flat brass inlays surround the instrument on the walnut surface.
+    for (const [name, progress] of [
+      ['DEC', 0],
+      ['MARCH', 0.5],
+      ['JUNE', 1],
+    ] as const) {
+      const texture = this.canvasTexture(512, 128, (ctx) => {
+        ctx.font = '72px Georgia';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#c5a165';
+        ctx.fillText(name, 256, 64);
+      });
+      const label = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.9, 0.225),
+        new THREE.MeshStandardNodeMaterial({
+          map: texture,
+          alphaTest: 0.15,
+          metalness: 0.35,
+          roughness: 0.6,
+          emissiveMap: texture,
+          emissive: 0xc5a165,
+          emissiveIntensity: 0.65,
+        }),
+      );
+      const [x, z] = seasonHandlePosition(progress);
+      const radius = (progress === 0.5 ? 1.52 : 1.7) / SEASON_MODEL.trackRadius;
+      label.position.set(x * radius, DESK_Y + 0.006, z * radius);
+      label.rotation.x = -Math.PI / 2;
+      this.add(label);
+    }
     // A very faint pool, not a support beam or a semicircular cradle.
     const pool = new THREE.Mesh(
       new THREE.CircleGeometry(0.88, 64),
