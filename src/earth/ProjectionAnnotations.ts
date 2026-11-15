@@ -12,16 +12,17 @@ export class ProjectionAnnotations extends THREE.Group {
     super();
     this.addHorseLatitudeBelts();
     const tilt = Math.abs(CONFIG.earth.axialTiltDegrees);
-    this.label('ARCTIC CIRCLE', `${(90 - tilt).toFixed(1)}° N`, -.03, .79, .61);
-    this.label('TROPIC OF CANCER', `${tilt.toFixed(1)}° N`, -.39, .31, .74);
-    this.label('EQUATOR', '0°', -.43, -.065, .48);
-    this.label('TROPIC OF CAPRICORN', `${tilt.toFixed(1)}° S`, -.37, -.43, .80);
-    this.label('ANTARCTIC CIRCLE', `${(90 - tilt).toFixed(1)}° S`, -.03, -.80, .68);
-    this.label('HORSE LATITUDES', '≈30° N', .39, .56, .66);
-    this.label('HORSE LATITUDES', '≈30° S', .39, -.49, .66);
-    const axis = this.label('ROTATION AXIS', '', .055, .04, .57);
-    // The axis label follows the axis; other labels stay horizontal on screen.
-    axis.rotation.z = Math.PI / 2;
+    const tropicY = Math.sin(THREE.MathUtils.degToRad(tilt));
+    // Alignment anchors sit immediately beside the rotation axis. The
+    // lettering shares the tilted latitude frame instead of facing upright.
+    this.label('ARCTIC CIRCLE', `${(90 - tilt).toFixed(1)}° N`, -.055, .84, .55, 'right');
+    this.label('TROPIC OF CANCER', `${tilt.toFixed(1)}° N`, -.055, tropicY + .07, .65, 'right');
+    this.label('EQUATOR', '0°', -.055, .07, .43, 'right');
+    this.label('TROPIC OF CAPRICORN', `${tilt.toFixed(1)}° S`, -.055, -tropicY + .07, .70, 'right');
+    this.label('ANTARCTIC CIRCLE', `${(90 - tilt).toFixed(1)}° S`, -.055, -.84, .60, 'right');
+    this.label('HORSE LATITUDES', '≈30° N', .055, .50, .60, 'left');
+    this.label('HORSE LATITUDES', '≈30° S', .055, -.50, .60, 'left');
+    this.label('ROTATION AXIS', '', .13, 1.37, .57, 'left');
 
     const material = new THREE.LineBasicNodeMaterial({
       color: 0x9f855d, transparent: true, opacity: .23, depthWrite: false,
@@ -29,13 +30,8 @@ export class ProjectionAnnotations extends THREE.Group {
     const leader = (points: number[][]) => this.add(new THREE.Line(
       new THREE.BufferGeometry().setFromPoints(points.map(([x, y]) => new THREE.Vector3(x, y, -.083))), material,
     ));
-    // Short leaders connect the exact circles to displaced lettering.
-    const polarY = Math.sin(THREE.MathUtils.degToRad(90 - tilt));
-    leader([[-.20, polarY], [-.20, .86], [-.12, .84]]);
-    leader([[-.20, -polarY], [-.20, -.87], [-.12, -.85]]);
-    const tropicY = Math.sin(THREE.MathUtils.degToRad(tilt));
-    leader([[-.82, tropicY], [-.73, tropicY], [-.69, .35]]);
-    leader([[-.82, -tropicY], [-.76, -tropicY], [-.71, -.40]]);
+    // Tag the exposed upper shaft, outside both the Earth and polar atmosphere.
+    leader([[0, 1.37], [.10, 1.37]]);
   }
 
   private texture(canvas: HTMLCanvasElement): THREE.CanvasTexture {
@@ -44,22 +40,22 @@ export class ProjectionAnnotations extends THREE.Group {
     this.textures.push(texture); return texture;
   }
 
-  private label(title: string, subtitle: string, x: number, y: number, width: number): THREE.Mesh {
+  private label(title: string, subtitle: string, x: number, y: number, width: number,
+    align: 'left' | 'right'): THREE.Mesh {
     const canvas = document.createElement('canvas'); canvas.width = Math.round(width * 1280); canvas.height = 192;
     const ctx = canvas.getContext('2d')!;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const center = canvas.width / 2;
-    ctx.fillStyle = '#c1a77c'; ctx.font = '64px Georgia, "Times New Roman", serif';
-    ctx.fillText(title, center, subtitle ? 58 : 96);
+    ctx.textAlign = align; ctx.textBaseline = 'middle';
+    const edge = align === 'right' ? canvas.width - 8 : 8;
+    ctx.fillStyle = '#c1a77c'; ctx.font = '52px Georgia, "Times New Roman", serif';
+    ctx.fillText(title, edge, subtitle ? 58 : 96);
     if (subtitle) {
-      ctx.fillStyle = '#8f805f'; ctx.font = '52px Georgia, "Times New Roman", serif';
-      ctx.fillText(subtitle, center, 143);
+      ctx.fillStyle = '#8f805f'; ctx.font = '42px Georgia, "Times New Roman", serif';
+      ctx.fillText(subtitle, edge, 143);
     }
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, 192 / 1280),
       new THREE.MeshBasicNodeMaterial({ map: this.texture(canvas), transparent: true,
         opacity: .78, depthWrite: false, side: THREE.DoubleSide }));
-    mesh.position.set(x, y, -.080);
-    mesh.rotation.z = -THREE.MathUtils.degToRad(CONFIG.earth.axialTiltDegrees);
+    mesh.position.set(x + (align === 'right' ? -width / 2 : width / 2), y, -.080);
     this.add(mesh); return mesh;
   }
 

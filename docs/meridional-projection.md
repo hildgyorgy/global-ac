@@ -19,8 +19,10 @@ thin slice needed 2.4×); the broader sample supplies the extra density.
 
 Projection mode includes quiet copper-toned labels for the Equator, Tropics
 of Cancer/Capricorn (±23.4°), Arctic/Antarctic Circles (±66.6°), and rotation
-axis. Geographic labels stay horizontal while the axis label follows the
-tilted axis. Leaders connect displaced labels to the exact reference chords.
+axis. Small labels run parallel to the tilted latitude chords. Geographic
+names align right just left of the axis; horse-latitude names align left
+just right of it. The rotation-axis tag sits outside the globe beside the
+exposed upper shaft, connected by a short leader.
 
 Horse latitudes are shown separately as soft illustrative 25–35° bands,
 labelled ≈30° N/S. These indicate the subtropical high-pressure regions near
