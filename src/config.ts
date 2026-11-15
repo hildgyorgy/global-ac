@@ -10,8 +10,8 @@ export const CONFIG = {
     radius: 1,
     axialTiltDegrees: -23.4,
     rotationRadians: -0.32,
-    // One full rotation in about 4 minutes 27 seconds.
-    spinRadiansPerSecond: (Math.PI * 2 / 60) * 0.225,
+    // One full rotation in about 3 minutes 33 seconds.
+    spinRadiansPerSecond: (Math.PI * 2 / 60) * 0.28125,
   },
   atmosphere: {
     cellParticleCounts,
