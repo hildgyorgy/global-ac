@@ -22,5 +22,9 @@ multitouch remain camera gestures. Solid scene geometry occludes control picks.
 
 Camera presets fit the desk in wide and portrait layouts. Orbit limits keep the
 camera above and in front of the desk. RESET restores the initial globe framing
-and clears cell focus while preserving the wind controls. In projection the
+and clears cell focus while preserving the wind controls and season setting. In projection the
 room and title dim, while independently lit buttons remain legible.
+
+A [curved season fader](season-dial.md) is integrated into the disk rim, with
+DECEMBER/JUNE inlays and a central Sun engraving. Its native range provides
+keyboard access; dragging the rail takes priority over camera gestures.

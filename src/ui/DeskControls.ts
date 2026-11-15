@@ -277,6 +277,7 @@ export class DeskControls {
   };
 
   private move = (event: PointerEvent): void => {
+    if (event.defaultPrevented) return;
     if (!this.pointers.size && event.target === this.canvas) {
       this.canvas.style.cursor = this.pick(event.clientX, event.clientY) >= 0 ? 'pointer' : '';
     }

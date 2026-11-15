@@ -15,6 +15,8 @@ import { SectionSwitch } from '../ui/SectionSwitch';
 import { LibraryStudy } from '../scene/LibraryStudy';
 import { DeskControls } from '../ui/DeskControls';
 import { CellSelection } from '../camera/CellSelection';
+import { SeasonDial } from '../ui/SeasonDial';
+import { SEASON_MODEL, seasonYaw, solarKeyPosition } from '../scene/SeasonModel';
 
 export class App {
   private readonly scene = new THREE.Scene();
@@ -27,6 +29,9 @@ export class App {
   private readonly study = new LibraryStudy();
   private readonly roomLights: { light: THREE.Light; intensity: number }[] = [];
   private readonly deskControls: DeskControls;
+  private readonly seasonDial: SeasonDial;
+  private seasonTarget = 0;
+  private seasonProgress = 0;
   private spinAngle = 0;
   private previousFrameTime = 0;
   private readonly earthSection = new EarthSection();
@@ -103,6 +108,18 @@ export class App {
       this.resetButton,
     );
     this.configureScene();
+    this.seasonDial = new SeasonDial({
+      anchor: this.study.seasonAnchor,
+      canvas: this.renderer.domElement,
+      camera: this.cameraRig.camera,
+      navigation: this.cameraRig.controls,
+      occluder: this.globe,
+      canInteract: () => this.running && !this.sectionEnabled && !this.transitioning,
+      onChange: (progress) => {
+        this.seasonTarget = progress;
+      },
+    });
+    this.instrumentControls.append(this.seasonDial.element);
     this.deskControls = new DeskControls(
       container,
       this.instrumentControls,
@@ -150,6 +167,7 @@ export class App {
     this.resetButton.removeEventListener('click', this.resetView);
     this.instrumentControls.remove();
     this.deskControls.dispose();
+    this.seasonDial.dispose();
     this.study.dispose();
     this.earth.dispose();
     this.earthSection.dispose();
@@ -175,8 +193,9 @@ export class App {
     // Faint library-room fill: preserve readable land on the night side.
     const ambient = new THREE.AmbientLight(0xaba18b, 0.22);
     const sun = new THREE.DirectionalLight(0xffd6a1, 2.8);
-    // Align the shadow-casting key with the visible reading lamp.
-    sun.position.copy(this.study.lampPosition);
+    // Fixed solar proxy is horizontal at globe height; the local lamp pool
+    // remains at the actual bulb, providing artistic room illumination.
+    sun.position.set(...solarKeyPosition());
     sun.target.position.y = CONFIG.presentation.globeHeight;
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
@@ -199,6 +218,7 @@ export class App {
     this.globe.scale.setScalar(CONFIG.presentation.globeScale);
     this.globe.position.y = CONFIG.presentation.globeHeight;
     this.globe.rotation.z = (CONFIG.earth.axialTiltDegrees * Math.PI) / 180;
+    this.globe.rotation.y = seasonYaw(0);
     this.rotatingGlobe.add(this.earth, this.particles);
     this.globe.add(this.rotatingGlobe, this.earthSection, this.orientationGuides);
     this.scene.add(this.globe);
@@ -215,6 +235,7 @@ export class App {
     this.particles.setSpinAngle(this.spinAngle);
     this.particles.compute(this.renderer);
     this.updateSectionTransition();
+    this.updateSeason(delta);
     // The scripted transition owns the camera until both phases finish.
     // OrbitControls would otherwise clamp the front-facing camera as soon
     // as the reverse toggle restores the globe's polar-angle limit.
@@ -222,6 +243,20 @@ export class App {
     this.deskControls.render();
     this.renderer.render(this.scene, this.cameraRig.camera);
   };
+
+  private updateSeason(delta: number): void {
+    this.seasonProgress +=
+      (this.seasonTarget - this.seasonProgress) *
+      (1 - Math.exp(-delta / SEASON_MODEL.responseSeconds));
+    if (Math.abs(this.seasonTarget - this.seasonProgress) < 0.0001)
+      this.seasonProgress = this.seasonTarget;
+    const yaw = seasonYaw(this.seasonProgress);
+    const shortYaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
+    // The abstract meridional chart keeps its canonical readable orientation.
+    // Reclosing restores the chosen three-dimensional instrument setting.
+    this.globe.rotation.y = shortYaw * (1 - THREE.MathUtils.smoothstep(this.sectionProgress, 0, 1));
+    this.seasonDial.setEnabled(!this.sectionEnabled && !this.transitioning);
+  }
 
   private setSectionEnabled = (enabled: boolean): void => {
     const { camera, controls } = this.cameraRig;

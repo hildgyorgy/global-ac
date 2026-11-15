@@ -3,7 +3,8 @@
 A WebGPU atmospheric circulation globe in a dark library study, built with
 Three.js, TypeScript and Vite. GPU particles show idealized Hadley, Ferrel and
 polar cells, optional Coriolis deflection, jet streams and five oceanic subtropical highs. A meridional
-projection reveals the vertical circulation.
+projection reveals the vertical circulation. A brass [season dial](docs/season-dial.md)
+turns the tilted globe between December and June under a fixed lamp.
 
 [Open the live globe](https://hildgyorgy.github.io/global-ac/).
 

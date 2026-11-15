@@ -82,7 +82,9 @@ near-surface haze and horse-latitude belts are graphical annotations, not
 computed temperature, pressure or density fields.
 
 The reading lamp provides artistic lighting through a local point light and
-an aligned shadow-casting directional light, plus faint ambient fill. It is
+a shadow-casting directional solar proxy at globe-centre height in the same
+azimuth, plus faint ambient fill. The [season dial](season-dial.md) changes the
+globe heading relative to that fixed light while retaining its axial tilt. It is
 not a live astronomical Sun model or physically computed global illumination.
 
 ## Regional subtropical highs

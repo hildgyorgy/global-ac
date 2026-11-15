@@ -14,7 +14,8 @@ pnpm build
 The Node suite checks circulation branch directions and shared boundaries,
 temperature normalization, Coriolis signs and taper, geometric metrics,
 jet speed/exclusion/symmetry, tracer passage through a jet, and startup
-success/failure routing. These are model checks, not validation against weather data.
+success/failure routing, season endpoint declinations at constant obliquity,
+and the curved fader's forward/inverse geometry. These are model checks, not validation against weather data.
 
 ## Actual GPU calculations
 
@@ -61,3 +62,10 @@ globe view, enable HIGHS and inspect all five ocean basins: trajectories
 should turn clockwise north of the equator and counterclockwise south of it,
 broaden outward near the surface, and blend back into the ambient flow. Check coexistence with jets and cell selection, plus the
 five-button row in wide and portrait viewports.
+
+For the season dial, drag December through the front arc to June and back.
+The lamp stays fixed, the whole tilted globe turns, and daily rotation continues.
+Check tap-to-set and keyboard arrows/Home/End, then open projection: the dial
+must be disabled and the diagram retain its canonical orientation. Closing the
+projection and RESET must preserve the season. Dial gestures must not orbit
+the camera or select a cell; ordinary globe gestures must still navigate.

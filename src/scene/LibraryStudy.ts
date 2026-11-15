@@ -1,12 +1,14 @@
 import * as THREE from 'three/webgpu';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { SEASON_MODEL } from './SeasonModel';
 
 const DESK_Y = -1.86;
 
 /** A small, entirely code-built observatory desk. No downloaded models or
  * background photographs: all props remain solid as the camera moves. */
 export class LibraryStudy extends THREE.Group {
-  readonly lampPosition = new THREE.Vector3(-3.25, 1.75, 0.9);
+  readonly lampPosition = new THREE.Vector3(...SEASON_MODEL.lampPosition);
+  readonly seasonAnchor = new THREE.Group();
   readonly controlAnchor = new THREE.Group();
   private readonly textures: THREE.Texture[] = [];
   private readonly brass = new THREE.MeshStandardNodeMaterial({
@@ -50,6 +52,8 @@ export class LibraryStudy extends THREE.Group {
     for (const z of [-2.3, -1.1, 0.1, 1.3, 2.5])
       this.box(10, 0.002, 0.008, seam, 0, DESK_Y + 0.001, z);
     this.createLevitationPlate();
+    this.seasonAnchor.position.y = DESK_Y + 0.085;
+    this.add(this.seasonAnchor);
     this.createLamp();
     this.createParchment(-2.45, 1.05, -0.23);
     this.createInkAndQuill();
@@ -214,23 +218,49 @@ export class LibraryStudy extends THREE.Group {
         ctx.fillText(text, 0, -420);
         ctx.restore();
       }
-      ctx.globalAlpha = 0.5;
+      // Solar instrument face: the moving fader represents Earth on a half-orbit.
+      ctx.globalAlpha = 0.85;
+      ctx.strokeStyle = '#d2ad6b';
+      ctx.lineWidth = 2.5;
+      ctx.fillStyle = '#9d743c55';
+      ctx.beginPath();
+      ctx.arc(0, 0, 55, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
       for (let i = 0; i < 16; i++) {
         ctx.save();
         ctx.rotate((i * Math.PI) / 8);
         ctx.beginPath();
-        ctx.moveTo(0, -290);
-        ctx.lineTo(17, -45);
-        ctx.lineTo(0, 0);
-        ctx.lineTo(-17, -45);
-        ctx.closePath();
+        ctx.moveTo(0, -76);
+        ctx.lineTo(0, i % 2 ? -112 : -142);
         ctx.stroke();
         ctx.restore();
+      }
+      ctx.font = '24px Georgia';
+      ctx.fillStyle = '#c5a165';
+      ctx.fillText('SOL', 0, 173);
+      ctx.globalAlpha = 1;
+      ctx.font = '34px Georgia';
+      for (const [name, x] of [
+        ['DECEMBER', -330],
+        ['JUNE', 330],
+      ] as const) {
+        ctx.fillStyle = '#29291e';
+        ctx.fillRect(x - 120, 112, 240, 50);
+        ctx.fillStyle = '#c5a165';
+        ctx.fillText(name, x, 149);
       }
     });
     const face = new THREE.Mesh(
       new THREE.CircleGeometry(1.205, 128),
-      new THREE.MeshStandardNodeMaterial({ map: engraving, roughness: 0.52, metalness: 0.26 }),
+      new THREE.MeshStandardNodeMaterial({
+        map: engraving,
+        roughness: 0.52,
+        metalness: 0.26,
+        emissiveMap: engraving,
+        emissive: 0xffffff,
+        emissiveIntensity: 0.22,
+      }),
     );
     face.rotation.x = -Math.PI / 2;
     face.position.y = DESK_Y + 0.061;
