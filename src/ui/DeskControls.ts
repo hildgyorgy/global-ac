@@ -38,7 +38,7 @@ export class DeskControls {
     anchor.add(this.group);
     this.addTitle();
     const buttons = [...element.querySelectorAll<HTMLButtonElement>('button')];
-    buttons.forEach((button, index) => this.addInstrument(button, [-.95, .63, 2.1][index]));
+    buttons.forEach((button, index) => this.addInstrument(button, [-1.55, 0, 1.55][index]));
     canvas.addEventListener('pointerdown', this.down, true);
     window.addEventListener('pointermove', this.move, true);
     window.addEventListener('pointerup', this.up, true);
@@ -46,16 +46,25 @@ export class DeskControls {
     window.addEventListener('blur', this.clear);
   }
 
-  private lettering(text: string, width: number, height: number, size = 68): THREE.Mesh {
+  private lettering(text: string, width: number, height: number, size = 68, reference?: string): THREE.Mesh {
     const canvas = document.createElement('canvas'); canvas.width = text.length > 20 ? 1536 : 512; canvas.height = 256;
     const ctx = canvas.getContext('2d')!;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = `${size}px Georgia, 'Times New Roman', serif`;
     const center = canvas.width / 2, maxWidth = canvas.width - 32;
-    ctx.lineWidth = 4; ctx.strokeStyle = '#211409'; ctx.strokeText(text, center + 1, 131, maxWidth);
     const grain = ctx.createLinearGradient(0, 85, 0, 175);
     grain.addColorStop(0, '#d7b982'); grain.addColorStop(.45, '#a47f48'); grain.addColorStop(1, '#d2af71');
-    ctx.fillStyle = grain; ctx.fillText(text, center, 128, maxWidth);
+    ctx.lineWidth = 4; ctx.strokeStyle = '#211409'; ctx.fillStyle = grain;
+    if (reference) {
+      // One shared horizontal font scale, calibrated to PROJECTION. Shorter
+      // labels keep the same glyph proportions and leave more empty space.
+      ctx.translate(center, 0);
+      ctx.scale(Math.min(1, maxWidth / ctx.measureText(reference).width), 1);
+      ctx.strokeText(text, 1, 131); ctx.fillText(text, 0, 128);
+    } else {
+      ctx.strokeText(text, center + 1, 131, maxWidth);
+      ctx.fillText(text, center, 128, maxWidth);
+    }
     const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 8; this.textures.push(texture);
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height),
@@ -65,11 +74,11 @@ export class DeskControls {
   }
 
   private addTitle(): void {
-    const title = this.lettering('Global Atmospheric Circulation', 3.15, .46, 130);
-    title.position.set(-3.28, 0, .002);
-    for (const y of [-.19, .19]) {
-      const line = new THREE.Mesh(new THREE.BoxGeometry(3.02, .006, .002), this.brass);
-      line.position.set(-3.28, y, .001); this.group.add(line);
+    const title = this.lettering('Global Atmospheric Circulation', 2.25, .33, 130);
+    title.position.set(-3.65, 0, .002);
+    for (const y of [-.135, .135]) {
+      const line = new THREE.Mesh(new THREE.BoxGeometry(2.2, .006, .002), this.brass);
+      line.position.set(-3.65, y, .001); this.group.add(line);
     }
   }
 
@@ -93,7 +102,7 @@ export class DeskControls {
       emissive: 0x95632d, emissiveIntensity: .025,
     }));
     face.position.set(x, 0, .003); this.group.add(face);
-    const label = this.lettering((button.textContent ?? '').toUpperCase(), 1.10, .29, 180);
+    const label = this.lettering((button.textContent ?? '').toUpperCase(), 1.10, .29, 180, 'PROJECTION');
     label.position.set(x, 0, .005);
     const item: Instrument = { button, hit, face, rim, label, light: 0, pulseUntil: 0,
       onClick: () => { item.pulseUntil = performance.now() + 550; } };
