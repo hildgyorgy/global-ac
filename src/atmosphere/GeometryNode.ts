@@ -24,3 +24,7 @@ export const radialVelocityNode = Fn<
       .mul(latitudeVelocity),
   ),
 );
+
+export const geographicLongitudeNode = Fn<[Node<'float'>], Node<'float'>>(([longitude]) =>
+  longitude.negate().sub(CONFIG.earth.rotationRadians),
+);

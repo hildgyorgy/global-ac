@@ -32,3 +32,12 @@ export function radialVelocity(
       latitudeVelocity
   );
 }
+
+/** Sphere UV east-positive longitude versus the particles' west-positive angle. */
+export function geographicLongitude(particleLongitude: number): number {
+  return -particleLongitude - CONFIG.earth.rotationRadians;
+}
+
+export function particleLongitude(geographicLongitude: number): number {
+  return -geographicLongitude - CONFIG.earth.rotationRadians;
+}

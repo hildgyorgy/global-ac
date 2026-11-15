@@ -34,6 +34,8 @@ atmospheric thickness. Altitude is normalized within this shell, not kilometres.
 Vertical motion is visually exaggerated relative to horizontal circulation.
 
 Ordinary particles retain their configured cell allocation on respawn.
+The optional regional anticyclone can carry them across a cell boundary during
+advection; their current band is retained when they leave that region.
 Latitude sampling favours cell boundaries without inserting visible gaps.
 Supplementary jet markers favour jet cores. Neither sampling bias represents
 mass accumulation. Particle positions, velocities, lifetime, reseeding and
@@ -82,3 +84,11 @@ computed temperature, pressure or density fields.
 The reading lamp provides artistic lighting through a local point light and
 an aligned shadow-casting directional light, plus faint ambient fill. It is
 not a live astronomical Sun model or physically computed global illumination.
+
+## Regional subtropical high
+
+The optional [Azores–Bermuda prototype](anticyclone.md) blends the ambient flow
+with a geographically anchored clockwise spiral, low-level outflow, weak upper
+convergence and central descent. It uses existing particles and the shared
+temperature model, with no additional tracer population. It is a prescribed
+regional field rather than a pressure-driven weather simulation.

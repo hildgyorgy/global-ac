@@ -17,7 +17,7 @@ import {
   vec3,
   vec4,
 } from 'three/tsl';
-import { particleRadiusNode, radialVelocityNode } from './GeometryNode';
+import { geographicLongitudeNode, particleRadiusNode, radialVelocityNode } from './GeometryNode';
 import {
   temperatureColorNode,
   particleLifeFadeNode,
@@ -33,6 +33,8 @@ import { cellFocusNode } from './CellSelectionNode';
 import { meridionalProjectionNode } from './MeridionalProjectionNode';
 import { JET_STREAMS_MODEL } from './JetStreamsModel';
 import { jetEastwardSpeedNode, jetStreamWeightNode, jetTracerSeedNode } from './JetStreamsNode';
+import { ANTICYCLONE_MODEL } from './AnticycloneModel';
+import { sampleAnticycloneNode } from './AnticycloneNode';
 
 // Keep only a numerical epsilon at latitude separatrices, not visible gaps.
 const LATITUDE_EPSILON = 0.0001;
@@ -48,6 +50,8 @@ export class GpuParticleSystem extends THREE.Sprite {
   private readonly selectedCell;
   private readonly jetStrength;
   private jetTarget = 0;
+  private readonly anticycloneStrength;
+  private anticycloneTarget = 0;
   private previousComputeTime = 0;
   private readonly computeInit: ComputeNode;
   private readonly computeUpdate: ComputeNode;
@@ -61,6 +65,7 @@ export class GpuParticleSystem extends THREE.Sprite {
     const spinAngle = uniform(0);
     const selectedCell = uniform(-1);
     const jetStrength = uniform(0);
+    const anticycloneStrength = uniform(0);
     const zonalSpeeds = instancedArray(count, 'float').setName('particleZonalSpeeds');
     const positions = instancedArray(count, 'vec4').setName('particlePositions');
     const velocities = instancedArray(count, 'vec4').setName('particleVelocities');
@@ -187,29 +192,42 @@ export class GpuParticleSystem extends THREE.Sprite {
 
       // Actual background velocity after the cap. dr/dt includes the
       // latitude-dependent shell thickness, not just normalized altitude.
-      const radialSpeed = radialVelocityNode(state.x, state.z, field.x, field.z);
+      // Convert the particle frame to geographic east-positive longitude.
+      // Earth's texture offset is shared by the physical globe and this field.
+      const localWind = sampleAnticycloneNode(
+        state.x,
+        geographicLongitudeNode(state.y),
+        state.z,
+        vec3(backgroundLongitudeRate.negate().mul(zonalMetric), northwardSpeed, field.z),
+        anticycloneStrength,
+      ).toVar();
+      const latitudeRate = localWind.y.div(radius);
+      const radialSpeed = radialVelocityNode(state.x, state.z, latitudeRate, localWind.z);
       const eastward = jetEastwardSpeedNode(
         state.x,
         state.z,
-        backgroundLongitudeRate.negate().mul(zonalMetric),
-        northwardSpeed,
+        localWind.x,
+        localWind.y,
         radialSpeed,
         jetStrength,
       );
       const longitudeRate = eastward.negate().div(zonalMetric);
 
-      state.x.addAssign(field.x.mul(dt));
+      state.x.addAssign(latitudeRate.mul(dt));
       state.y.addAssign(longitudeRate.mul(dt));
-      state.z.addAssign(field.z.mul(dt));
+      state.z.addAssign(localWind.z.mul(dt));
 
       const hemisphere = state.x.sign();
       const minimumLatitude = state.w.add(LATITUDE_EPSILON).mul(HADLEY_MODEL.cellEdgeRadians);
       const maximumLatitude = state.w.add(1 - LATITUDE_EPSILON).mul(HADLEY_MODEL.cellEdgeRadians);
-      If(instanceIndex.lessThan(baseCount), () => {
+      If(instanceIndex.lessThan(baseCount).and(localWind.w.lessThanEqual(0.001)), () => {
         state.x.assign(state.x.abs().clamp(minimumLatitude, maximumLatitude).mul(hemisphere));
       }).Else(() => {
-        // Extra markers sample the same field and can cross cell boundaries.
+        // Regional flow and extra jet markers can cross idealized cell boundaries.
         state.x.assign(state.x.clamp(-Math.PI / 2 + 0.0001, Math.PI / 2 - 0.0001));
+        // A regional wind can carry air across a cell boundary. Retain its
+        // actual band when it leaves the region or the switch fades out.
+        state.w.assign(state.x.abs().div(HADLEY_MODEL.cellEdgeRadians).floor().min(2));
       });
       state.y.assign(state.y.add(PI2).mod(PI2));
       state.z.assign(state.z.clamp(MIN_ALTITUDE, MAX_ALTITUDE));
@@ -217,7 +235,9 @@ export class GpuParticleSystem extends THREE.Sprite {
       position.xyz.assign(toCartesian(state.x, state.y, state.z));
       position.w.subAssign(dt.mul(0.055));
       velocity.assign(field);
+      velocity.x.assign(latitudeRate);
       velocity.y.assign(longitudeRate);
+      velocity.z.assign(localWind.z);
 
       const lifecycle = jetLifecycle.element(instanceIndex);
       If(instanceIndex.greaterThanEqual(baseCount), () => {
@@ -302,6 +322,7 @@ export class GpuParticleSystem extends THREE.Sprite {
     this.spinAngle = spinAngle;
     this.selectedCell = selectedCell;
     this.jetStrength = jetStrength;
+    this.anticycloneStrength = anticycloneStrength;
     this.count = count;
     this.frustumCulled = false;
     this.renderOrder = 3;
@@ -325,6 +346,9 @@ export class GpuParticleSystem extends THREE.Sprite {
     this.jetStrength.value +=
       (this.jetTarget - this.jetStrength.value) *
       (1 - Math.exp(-dt / JET_STREAMS_MODEL.switchTimeSeconds));
+    this.anticycloneStrength.value +=
+      (this.anticycloneTarget - this.anticycloneStrength.value) *
+      (1 - Math.exp(-dt / ANTICYCLONE_MODEL.switchTimeSeconds));
     renderer.compute(this.computeUpdate);
     this.trails.compute(renderer);
   }
@@ -340,6 +364,10 @@ export class GpuParticleSystem extends THREE.Sprite {
 
   setJetsEnabled(enabled: boolean): void {
     this.jetTarget = enabled ? 1 : 0;
+  }
+
+  setAnticycloneEnabled(enabled: boolean): void {
+    this.anticycloneTarget = enabled ? 1 : 0;
   }
 
   setSpinAngle(angle: number): void {

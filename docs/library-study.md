@@ -12,7 +12,7 @@ and its instanced fibres use lit materials. See [the model](model.md) for lighti
 and atmospheric limitations.
 
 `DeskControls.ts` places equal recessed brass pills in the tabletop: PROJECTION,
-CORIOLIS, JET-STREAMS and RESET. The title is inlaid above the row, toward the globe.
+CORIOLIS, JET-STREAMS, AZORES HIGH and RESET. The title is inlaid above the row, toward the globe.
 Active controls glow softly in amber; RESET pulses briefly. Real depth testing
 allows foreground particles to pass in front of the controls.
 
@@ -22,5 +22,5 @@ multitouch remain camera gestures. Solid scene geometry occludes control picks.
 
 Camera presets fit the desk in wide and portrait layouts. Orbit limits keep the
 camera above and in front of the desk. RESET restores the initial globe framing
-and clears cell focus while preserving both wind controls. In projection the
+and clears cell focus while preserving the wind controls. In projection the
 room and title dim, while independently lit buttons remain legible.

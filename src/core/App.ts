@@ -34,6 +34,7 @@ export class App {
   private readonly sectionSwitch: SectionSwitch;
   private readonly coriolisSwitch: SectionSwitch;
   private readonly jetsSwitch: SectionSwitch;
+  private readonly anticycloneSwitch: SectionSwitch;
   private readonly instrumentControls = document.createElement('div');
   private readonly resetButton = document.createElement('button');
   private readonly cellSelection: CellSelection;
@@ -83,6 +84,11 @@ export class App {
       },
       { label: 'Jet-streams' },
     );
+    this.anticycloneSwitch = new SectionSwitch(
+      (enabled) => this.particles.setAnticycloneEnabled(enabled),
+      { label: 'Azores High' },
+    );
+    this.anticycloneSwitch.element.setAttribute('aria-label', 'Azores–Bermuda high');
     this.instrumentControls.className = 'instrument-controls';
     this.resetButton.type = 'button';
     this.resetButton.className = 'section-switch reset-button';
@@ -93,6 +99,7 @@ export class App {
       this.sectionSwitch.element,
       this.coriolisSwitch.element,
       this.jetsSwitch.element,
+      this.anticycloneSwitch.element,
       this.resetButton,
     );
     this.configureScene();
@@ -139,6 +146,7 @@ export class App {
     this.sectionSwitch.dispose();
     this.coriolisSwitch.dispose();
     this.jetsSwitch.dispose();
+    this.anticycloneSwitch.dispose();
     this.resetButton.removeEventListener('click', this.resetView);
     this.instrumentControls.remove();
     this.deskControls.dispose();
