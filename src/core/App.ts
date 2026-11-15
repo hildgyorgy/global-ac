@@ -109,12 +109,12 @@ export class App {
     await this.particles.initialize(this.renderer);
     this.running = true;
     this.previousFrameTime = performance.now();
-    this.renderer.setAnimationLoop(this.animate);
+    await this.renderer.setAnimationLoop(this.animate);
   }
 
   dispose(): void {
     this.running = false;
-    this.renderer.setAnimationLoop(null);
+    if (this.renderer.hasInitialized()) void this.renderer.setAnimationLoop(null);
     window.removeEventListener('resize', this.handleResize);
     this.cameraRig.controls.dispose();
     this.cellSelection.dispose();
@@ -313,7 +313,7 @@ export class App {
 
   showInitializationError(error: unknown): void {
     this.running = false;
-    this.renderer.setAnimationLoop(null);
+    if (this.renderer.hasInitialized()) void this.renderer.setAnimationLoop(null);
     console.error('Atmospheric globe initialization failed:', error);
     this.showWebGpuError('The globe could not start its WebGPU renderer. Please reload the page or try another WebGPU-capable browser.');
   }
