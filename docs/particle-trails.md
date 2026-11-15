@@ -1,9 +1,12 @@
 # Particle trails
 
-`GpuParticleTrails.ts` selects every `STRIDE`th particle, including supplementary
-jet markers. Trail count is `ceil(totalParticleCount / STRIDE)`; history length
-and sampling interval are defined beside that stride. Counts derive from
-`CONFIG.atmosphere` and `JET_STREAMS_MODEL`, rather than a separate fixed budget.
+`ParticleTrailsModel.ts` selects every stride-th circulation particle and every
+stride-th marker independently within each jet group. This avoids aliasing
+between the trail stride and the interleaved northern/southern jet allocation.
+Each group rounds up its trail count, so all four jets receive the same sampling
+ratio, with at most one tracer of rounding difference. History length and sample
+interval are defined in the same model. The index map is uploaded once;
+`GpuParticleTrails.ts` uses it for both GPU history updates and line rendering.
 
 One GPU invocation owns a complete trail. Samples shift in descending order
 after advection, avoiding cross-invocation races. A life increase clears the

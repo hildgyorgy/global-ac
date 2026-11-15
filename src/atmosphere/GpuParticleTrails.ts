@@ -14,6 +14,7 @@ import {
 } from 'three/tsl';
 import { cellFocusNode } from './CellSelectionNode';
 import { meridionalProjectionNode } from './MeridionalProjectionNode';
+import { createTrailParticleIndices, TRAILS_MODEL } from './ParticleTrailsModel';
 import {
   temperatureColorNode,
   particleLifeFadeNode,
@@ -33,11 +34,10 @@ interface ParticleTrailsOptions {
   jetStrength: Node<'float'>;
 }
 
-const STRIDE = 24;
-const SAMPLES = 24;
-const SAMPLE_INTERVAL = 0.075;
+const SAMPLES = TRAILS_MODEL.samples;
+const SAMPLE_INTERVAL = TRAILS_MODEL.sampleInterval;
 
-/** Short, Earth-relative motion histories for every 24th tracer.
+/** Short, Earth-relative motion histories for a sparse selection in each population.
  * One GPU invocation owns an entire trail: shifting samples has no data races.
  */
 export class GpuParticleTrails extends THREE.LineSegments<
@@ -62,13 +62,19 @@ export class GpuParticleTrails extends THREE.LineSegments<
     jetLifecycle,
     jetStrength,
   }: ParticleTrailsOptions) {
-    const trailCount = Math.ceil(particleCount / STRIDE);
+    const indices = createTrailParticleIndices(
+      baseParticleCount,
+      particleCount - baseParticleCount,
+    );
+    const trailCount = indices.length;
+    // Uploaded once. All animated positions and histories remain GPU-resident.
+    const particleIndices = instancedArray(indices, 'uint').setName('trailParticleIndices');
     const history = instancedArray(trailCount * SAMPLES, 'vec4').setName('trailHistory');
     const previousLife = instancedArray(trailCount, 'float').setName('trailPreviousLife');
     const sampleNow = uniform(0);
 
     const initializeNode = Fn(() => {
-      const particle = instanceIndex.mul(STRIDE);
+      const particle = particleIndices.element(instanceIndex);
       const point = vec4(positions.element(particle).xyz, velocities.element(particle).w);
       const base = instanceIndex.toInt().mul(SAMPLES);
       Loop(SAMPLES, ({ i }) => {
@@ -80,7 +86,7 @@ export class GpuParticleTrails extends THREE.LineSegments<
       .setName('InitializeParticleTrails');
 
     const updateNode = Fn(() => {
-      const particle = instanceIndex.mul(STRIDE);
+      const particle = particleIndices.element(instanceIndex);
       const position = positions.element(particle);
       const point = vec4(position.xyz, velocities.element(particle).w);
       const base = instanceIndex.toInt().mul(SAMPLES);
@@ -110,7 +116,7 @@ export class GpuParticleTrails extends THREE.LineSegments<
     const segment = vertexIndex.div(2);
     const trail = segment.div(SAMPLES);
     const age = segment.mod(SAMPLES).add(vertexIndex.mod(2)).toInt().sub(1);
-    const particle = trail.mul(STRIDE);
+    const particle = particleIndices.element(trail);
     const trailPoint = Fn(() => {
       const result = vec4(positions.element(particle).xyz, velocities.element(particle).w).toVar();
       If(age.greaterThanEqual(0), () => {
