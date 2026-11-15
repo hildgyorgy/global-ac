@@ -14,3 +14,17 @@ enter and leave the wedge. The simulation and GPU histories remain 3D.
 The globe mode, circulation, temperature model and particle budgets are
 unchanged. Projection brightness is 1.6× globe brightness (formerly the
 thin slice needed 2.4×); the broader sample supplies the extra density.
+
+## Orientation annotations
+
+Projection mode includes quiet copper-toned labels for the Equator, Tropics
+of Cancer/Capricorn (±23.4°), Arctic/Antarctic Circles (±66.6°), and rotation
+axis. Geographic labels stay horizontal while the axis label follows the
+tilted axis. Leaders connect displaced labels to the exact reference chords.
+
+Horse latitudes are shown separately as soft illustrative 25–35° bands,
+labelled ≈30° N/S. These indicate the subtropical high-pressure regions near
+the descending Hadley branches, not fixed geographic boundaries or a
+computed pressure field. Their widths are a display convention; real belts
+vary with longitude, season and weather. The bands and labels appear only
+in projection mode and do not affect particle positions or dynamics.

@@ -1,8 +1,10 @@
 import * as THREE from 'three/webgpu';
 import { CONFIG } from '../config';
+import { ProjectionAnnotations } from './ProjectionAnnotations';
 
 /** Opaque face of the meridional cut, behind the slab's visible particles. */
 export class EarthSection extends THREE.Group {
+  private readonly annotations = new ProjectionAnnotations();
   constructor() {
     super();
     const face = new THREE.Mesh(
@@ -18,7 +20,9 @@ export class EarthSection extends THREE.Group {
       }),
     );
     edge.position.z = -0.094;
-    this.add(face, edge);
+    this.add(face, edge, this.annotations);
     this.visible = false;
   }
+
+  dispose(): void { this.annotations.dispose(); }
 }

@@ -112,6 +112,7 @@ export class App {
     this.deskControls.dispose();
     this.study.dispose();
     this.earth.dispose();
+    this.earthSection.dispose();
     this.particles.dispose();
     this.scene.traverse((object) => {
       if (object === this.particles || object === this.particles.trails) return;
