@@ -6,7 +6,7 @@ const DESK_Y = -1.86;
 /** A small, entirely code-built observatory desk. No downloaded models or
  * background photographs: all props remain solid as the camera moves. */
 export class LibraryStudy extends THREE.Group {
-  readonly lampPosition = new THREE.Vector3(-2.55, 1.75, 0.9);
+  readonly lampPosition = new THREE.Vector3(-3.25, 1.75, 0.9);
   readonly controlAnchor = new THREE.Group();
   private readonly textures: THREE.Texture[] = [];
   private readonly brass = new THREE.MeshStandardNodeMaterial({
