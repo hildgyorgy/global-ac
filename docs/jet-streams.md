@@ -1,24 +1,34 @@
 # Idealized jet streams
 
 The **JET-STREAMS** desk button enables four prescribed upper-air wind bands:
-subtropical centres at ±30°, polar-front centres at ±55°. This follows the
+subtropical centres at ±30°, polar-front centres at ±60°. This follows the
 broad placement described by [NOAA](https://www.noaa.gov/jetstream/global/jet-stream),
 but is an educational analytic field, not a numerical weather simulation.
 
 ## One shared wind field
 
-All existing 48,333 tracers sample the same augmented field. There is no
-separate population, jet status, respawn rule or particle-count increase.
-North–south and vertical circulation continue unchanged, carrying tracers
-into and out of the jet regions. Their temperature model, red–blue colours,
-size and brightness are unchanged. Every 24th tracer still has a trail:
-2,014 trails with the same history interval and length as before.
+The original 48,333 circulation tracers and 1,500 supplementary jet markers
+sample the same augmented field. North–south and vertical circulation continue
+unchanged, carrying tracers into and out of jet regions. Temperature colours,
+size and brightness are unchanged. Every 24th tracer has a trail: 2,077 trails
+across 49,833 particles, including 63 supplementary trails.
 
-Jet weight is the sum of two latitude Gaussians (standard deviations 3.5°
-and 4.5°), mirrored across the equator, multiplied by a vertical Gaussian
-centred at normalized altitude 0.84 with width 0.10. A smooth lower gate
-is zero through 0.55 and fully open by 0.70. These heights refer to the
-deliberately exaggerated model shell, not kilometres or pressure levels.
+Supplementary markers are evenly allocated to the four jets (375 each).
+They seed in a disk of radius 0.024 Earth radii around each core in the
+meridional cross-section, distributed around all longitudes. They fade in,
+advect freely, then fade out and reseed when the jet weight drops below 0.40.
+Their age, fading, respawning and trail clearing run on the GPU. They are
+hidden when jets are disabled. This sampling bias makes jet cross-sections
+readable; particle density does not represent atmospheric mass density.
+
+Each band has a two-dimensional Gaussian: latitude widths 3.5° and 4.5°,
+normalized altitude centres 0.86 and 0.78, and altitude widths 0.095 and 0.12,
+respectively for the subtropical and polar-front jets. A smooth lower gate
+is zero through 0.55 and fully open by 0.70. The latitude-dependent shell
+makes the subtropical core geometrically higher than the polar-front core,
+following the reference's stepped tropopause arrangement. These heights refer
+to the deliberately exaggerated model shell, not kilometres or pressure levels.
+The positions are idealized averages, not fixed real-world jet locations.
 
 At a fully enabled jet core, total Earth-relative wind speed targets twice
 the local background magnitude. Only the eastward component is changed:
@@ -53,20 +63,19 @@ Only a global switch-strength uniform is eased on the CPU, with a 0.55-second
 time constant, avoiding abrupt velocity changes on activation/deactivation.
 
 The four equal brass pills remain centred under the globe. The title inlay
-is smaller to make room; RESET remains last. Reset and projection changes
+sits above the buttons on the tabletop, closer to the globe; RESET remains last. Reset and projection changes
 preserve both jet and Coriolis state. The strongest directional impression
 is in 3D: a meridional projection intentionally collapses east–west motion,
 though faster tracers still enter and leave its selected longitude wedge.
 
 ## Validation
 
-- `pnpm run test:physics`: six tests cover off-state identity, lower-air
-  exclusion, hemisphere symmetry, eastward core flow, the 2× total-speed
+- `pnpm run test:physics`: seven tests cover off-state identity, lower-air
+  exclusion, jet height ordering, hemisphere symmetry, eastward core flow, the 2× total-speed
   target, the reference floor, and a tracer entering/leaving a jet region.
 - `pnpm run build`: TypeScript and production bundle.
-- With Vite dev running, `/tests/jet-gpu.html` compares 315 actual WebGPU
-  compute results with the CPU reference. Observed maximum absolute error:
-  approximately 1.1×10⁻⁷. Positive Coriolis damping in all switch states is
+- With Vite dev running, `/tests/jet-gpu.html` compares 378 actual WebGPU
+  compute results with the CPU reference and validates all 1,500 jet seeds. Tolerance: 1×10⁻⁵. Positive Coriolis damping in all switch states is
   also checked on the GPU. This test alone reads a tiny result buffer back;
   production particle simulation never does.
 - Browser checks: physical pill clicks, both wind switches, projection,

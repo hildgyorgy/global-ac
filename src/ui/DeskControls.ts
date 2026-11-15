@@ -77,12 +77,12 @@ export class DeskControls {
   }
 
   private addTitle(): void {
-    const title = this.lettering('Global Atmospheric Circulation', 1.50, .23, 130);
+    const title = this.lettering('Global Atmospheric Circulation', 3.15, .33, 130);
     this.titleLabel = title;
-    title.position.set(-4.04, 0, .002);
-    for (const y of [-.095, .095]) {
-      const line = new THREE.Mesh(new THREE.BoxGeometry(1.46, .006, .002), this.brass);
-      line.position.set(-4.04, y, .001); this.group.add(line);
+    title.position.set(0, .56, .002);
+    for (const y of [.425, .695]) {
+      const line = new THREE.Mesh(new THREE.BoxGeometry(3.08, .006, .002), this.brass);
+      line.position.set(0, y, .001); this.group.add(line);
     }
   }
 

@@ -6,6 +6,7 @@ import {
 } from 'three/tsl';
 import { cellFocusNode } from './CellSelectionNode';
 import { meridionalProjectionNode } from './MeridionalProjectionNode';
+import { JET_STREAMS_MODEL } from './JetStreamsModel';
 
 const STRIDE = 24;
 const SAMPLES = 24;
@@ -29,6 +30,9 @@ export class GpuParticleTrails extends THREE.LineSegments<THREE.BufferGeometry, 
     spinAngle: Node<'float'>,
     sectionBrightness: Node<'float'>,
     selectedCell: Node<'float'>,
+    baseParticleCount: number,
+    jetLifecycle: StorageBufferNode<'vec2'>,
+    jetStrength: Node<'float'>,
   ) {
     const trailCount = Math.ceil(particleCount / STRIDE);
     const history = instancedArray(trailCount * SAMPLES, 'vec4').setName('trailHistory');
@@ -80,6 +84,10 @@ export class GpuParticleTrails extends THREE.LineSegments<THREE.BufferGeometry, 
     const temperatureColor = mix(coldToViolet, color(0xff102b), temperature.sub(0.5).mul(2).clamp()) as Node<'vec3'>;
     const fade = varying(float(1).sub(age.toFloat().add(1).div(SAMPLES)).max(0).pow(1.5));
     const lifeFade = varying(positions.element(particle).w.clamp(0, 0.24).div(0.24));
+    const cycle = jetLifecycle.element(particle);
+    const jetFade = varying(mix(float(1), jetStrength
+      .mul(cycle.x.smoothstep(0, JET_STREAMS_MODEL.tracerFadeSeconds)).mul(cycle.y),
+    particle.greaterThanEqual(baseParticleCount).toFloat()));
     const slicePosition = varying(trailPoint.xyz);
     const latitude = slicePosition.y.div(slicePosition.length().max(0.001)).clamp(-1, 1).asin();
     const focus = cellFocusNode(latitude, selectedCell);
@@ -92,7 +100,7 @@ export class GpuParticleTrails extends THREE.LineSegments<THREE.BufferGeometry, 
     });
     material.positionNode = projection.position;
     material.colorNode = temperatureColor.mul(sectionBrightness).mul(1.35).mul(focus);
-    material.opacityNode = fade.mul(lifeFade).mul(visibility).mul(0.72);
+    material.opacityNode = fade.mul(lifeFade).mul(visibility).mul(jetFade).mul(0.72);
     const geometry = new THREE.BufferGeometry();
     // Only topology lives on the CPU. All animated vertex positions come from
     // GPU storage via vertexIndex; no history is read back or uploaded per frame.

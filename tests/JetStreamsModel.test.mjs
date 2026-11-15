@@ -2,6 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { JET_STREAMS_MODEL as model, jetStreamWeight, sampleJetEastwardSpeed } from '../src/atmosphere/JetStreamsModel.ts';
 import { sampleHadleyModel } from '../src/atmosphere/HadleyModel.ts';
+import { CONFIG } from '../src/config.ts';
+
+test('subtropical cores sit above polar-front cores in the tapered shell', () => {
+  const heights = model.bands.map(band => band.coreAltitude
+    * (CONFIG.atmosphere.polarShellThickness
+      + (CONFIG.atmosphere.equatorialShellThickness - CONFIG.atmosphere.polarShellThickness)
+      * Math.cos(band.latitude) ** 2));
+  assert.ok(heights[0] > heights[1]);
+  assert.equal(model.bands[0].latitude, Math.PI / 6);
+  assert.equal(model.bands[1].latitude, Math.PI / 3);
+});
 
 test('disabled jets reproduce the background exactly across the atmosphere', () => {
   for (let degrees = -90; degrees <= 90; degrees += 5) {
@@ -28,11 +39,11 @@ test('jets are absent in the lower atmosphere, even under each core', () => {
 
 test('all four cores are eastward and double the full background speed', () => {
   for (const band of model.bands) for (const sign of [-1, 1]) {
-    assert.equal(jetStreamWeight(sign * band.latitude, model.coreAltitude), 1);
+    assert.equal(jetStreamWeight(sign * band.latitude, band.coreAltitude), 1);
     for (const eastward of [-.3, -.08, .08, .3]) {
       const wind = { eastward, northward: .04, radial: -.02 };
       const before = { ...wind };
-      const jet = sampleJetEastwardSpeed(sign * band.latitude, model.coreAltitude, wind);
+      const jet = sampleJetEastwardSpeed(sign * band.latitude, band.coreAltitude, wind);
       assert.ok(jet > 0);
       const ratio = Math.hypot(jet, wind.northward, wind.radial)
         / Math.hypot(eastward, wind.northward, wind.radial);
@@ -43,7 +54,7 @@ test('all four cores are eastward and double the full background speed', () => {
 });
 
 test('the reference floor carries tracers through idealized stagnation points', () => {
-  const eastward = sampleJetEastwardSpeed(model.bands[0].latitude, model.coreAltitude,
+  const eastward = sampleJetEastwardSpeed(model.bands[0].latitude, model.bands[0].coreAltitude,
     { eastward: 0, northward: 0, radial: 0 });
   assert.equal(eastward, model.coreSpeedMultiplier * model.minimumReferenceSpeed);
 });
@@ -56,8 +67,8 @@ test('jet weights are symmetric, bounded and smoothly weaken outside their cores
     assert.equal(weight, jetStreamWeight(-latitude, h));
   }
   for (const band of model.bands) {
-    assert.ok(jetStreamWeight(band.latitude + band.width, model.coreAltitude) < .7);
-    assert.ok(jetStreamWeight(band.latitude, model.coreAltitude - model.altitudeWidth) < .7);
+    assert.ok(jetStreamWeight(band.latitude + band.width, band.coreAltitude) < .7);
+    assert.ok(jetStreamWeight(band.latitude, band.coreAltitude - band.altitudeWidth) < .7);
   }
 });
 

@@ -14,6 +14,7 @@ import {
   shapeCircle,
   time,
   uniform,
+  vec2,
   vec3,
   vec4,
 } from 'three/tsl';
@@ -26,7 +27,7 @@ import { GpuParticleTrails } from './GpuParticleTrails';
 import { cellFocusNode } from './CellSelectionNode';
 import { meridionalProjectionNode } from './MeridionalProjectionNode';
 import { JET_STREAMS_MODEL } from './JetStreamsModel';
-import { jetEastwardSpeedNode } from './JetStreamsNode';
+import { jetEastwardSpeedNode, jetStreamWeightNode, jetTracerSeedNode } from './JetStreamsNode';
 
 // Keep only a numerical epsilon at latitude separatrices, not visible gaps.
 const LATITUDE_EPSILON = 0.0001;
@@ -47,7 +48,8 @@ export class GpuParticleSystem extends THREE.Sprite {
   private readonly computeUpdate: ComputeNode;
 
   constructor() {
-    const count = CONFIG.atmosphere.particleCount;
+    const baseCount = CONFIG.atmosphere.particleCount;
+    const count = baseCount + JET_STREAMS_MODEL.extraTracerCount;
     const projectionProgress = uniform(0);
     const sectionBrightness = uniform(1);
     const coriolisStrength = uniform(0);
@@ -58,6 +60,7 @@ export class GpuParticleSystem extends THREE.Sprite {
     const positions = instancedArray(count, 'vec4').setName('particlePositions');
     const velocities = instancedArray(count, 'vec4').setName('particleVelocities');
     const sphericalState = instancedArray(count, 'vec4').setName('particleSphericalState');
+    const jetLifecycle = instancedArray(count, 'vec2').setName('jetTracerLifecycle');
 
     // Exact configured cell budgets; respawns retain their original cell.
     const allocatedCellIndex = Fn(() => {
@@ -101,6 +104,11 @@ export class GpuParticleSystem extends THREE.Sprite {
       );
     });
 
+    const seedJet = Fn<[Node<'float'>], Node<'vec2'>>(([seed]) => jetTracerSeedNode(
+      instanceIndex.sub(baseCount).mod(4).toFloat(),
+      hash(seed.add(71)).mul(PI2), hash(seed.add(89)).sqrt(),
+    ));
+
     const computeInit = Fn(() => {
       const index = instanceIndex.toFloat();
       const position = positions.element(instanceIndex);
@@ -116,15 +124,22 @@ export class GpuParticleSystem extends THREE.Sprite {
       const altitude = hash(index.add(17))
         .pow(1.3)
         .mul(MAX_ALTITUDE - MIN_ALTITUDE)
-        .add(MIN_ALTITUDE);
-      const cellIndex = allocatedCellIndex();
-      const latitude = hemisphere.mul(HADLEY_MODEL.cellEdgeRadians).mul(cellPosition.add(cellIndex));
+        .add(MIN_ALTITUDE).toVar();
+      const cellIndex = allocatedCellIndex().toVar();
+      const latitude = hemisphere.mul(HADLEY_MODEL.cellEdgeRadians).mul(cellPosition.add(cellIndex)).toVar();
+      If(instanceIndex.greaterThanEqual(baseCount), () => {
+        const seed = seedJet(index);
+        latitude.assign(seed.x); altitude.assign(seed.y);
+        cellIndex.assign(latitude.abs().div(HADLEY_MODEL.cellEdgeRadians).floor().min(2));
+      });
       const longitude = hash(index.add(29)).mul(PI2);
       const life = hash(index.add(43)).mul(0.5).add(0.5);
       const field = sampleHadleyField(latitude, altitude);
 
       state.assign(vec4(latitude, longitude, altitude, cellIndex));
       position.assign(vec4(toCartesian(latitude, longitude, altitude), life));
+      If(instanceIndex.greaterThanEqual(baseCount), () => { position.w.assign(1); });
+      jetLifecycle.element(instanceIndex).assign(vec2(0, 1));
       velocity.assign(field);
       zonalSpeeds.element(instanceIndex).assign(0);
     })().compute(count).setName('Initialize atmospheric particles');
@@ -172,7 +187,12 @@ export class GpuParticleSystem extends THREE.Sprite {
       const hemisphere = state.x.sign();
       const minimumLatitude = state.w.add(LATITUDE_EPSILON).mul(HADLEY_MODEL.cellEdgeRadians);
       const maximumLatitude = state.w.add(1 - LATITUDE_EPSILON).mul(HADLEY_MODEL.cellEdgeRadians);
-      state.x.assign(state.x.abs().clamp(minimumLatitude, maximumLatitude).mul(hemisphere));
+      If(instanceIndex.lessThan(baseCount), () => {
+        state.x.assign(state.x.abs().clamp(minimumLatitude, maximumLatitude).mul(hemisphere));
+      }).Else(() => {
+        // Extra markers sample the same field and can cross cell boundaries.
+        state.x.assign(state.x.clamp(-Math.PI / 2 + .0001, Math.PI / 2 - .0001));
+      });
       state.y.assign(state.y.add(PI2).mod(PI2));
       state.z.assign(state.z.clamp(MIN_ALTITUDE, MAX_ALTITUDE));
 
@@ -181,9 +201,19 @@ export class GpuParticleSystem extends THREE.Sprite {
       velocity.assign(field);
       velocity.y.assign(longitudeRate);
 
+      const lifecycle = jetLifecycle.element(instanceIndex);
+      If(instanceIndex.greaterThanEqual(baseCount), () => {
+        lifecycle.x.addAssign(dt);
+        If(lifecycle.y.lessThan(1).or(jetStreamWeightNode(state.x, state.z)
+          .lessThan(JET_STREAMS_MODEL.tracerExitWeight)), () => {
+          lifecycle.y.assign(lifecycle.y.sub(dt.div(JET_STREAMS_MODEL.tracerFadeSeconds)).max(0));
+        });
+      });
+
       // Lifetime and respawn stay on the GPU. The time-varying hash prevents
       // repeated particles from returning to a visible fixed lattice.
-      If(position.w.lessThanEqual(0), () => {
+      If(position.w.lessThanEqual(0).or(instanceIndex.greaterThanEqual(baseCount)
+        .and(lifecycle.y.lessThanEqual(0))), () => {
         const respawnSeed = instanceIndex.toFloat().add(time.mul(19.17));
         const respawnHemisphere = float(1).toVar();
 
@@ -195,11 +225,16 @@ export class GpuParticleSystem extends THREE.Sprite {
         const altitude = hash(respawnSeed.add(23))
           .pow(1.3)
           .mul(MAX_ALTITUDE - MIN_ALTITUDE)
-          .add(MIN_ALTITUDE);
-        const cellIndex = allocatedCellIndex();
+          .add(MIN_ALTITUDE).toVar();
+        const cellIndex = allocatedCellIndex().toVar();
         const latitude = respawnHemisphere
           .mul(HADLEY_MODEL.cellEdgeRadians)
-          .mul(cellPosition.add(cellIndex));
+          .mul(cellPosition.add(cellIndex)).toVar();
+        If(instanceIndex.greaterThanEqual(baseCount), () => {
+          const seed = seedJet(respawnSeed);
+          latitude.assign(seed.x); altitude.assign(seed.y);
+          cellIndex.assign(latitude.abs().div(HADLEY_MODEL.cellEdgeRadians).floor().min(2));
+        });
         const longitude = hash(respawnSeed.add(37)).mul(PI2);
         const respawnField = sampleHadleyField(latitude, altitude);
 
@@ -210,6 +245,10 @@ export class GpuParticleSystem extends THREE.Sprite {
             hash(respawnSeed.add(59)).mul(0.35).add(0.65),
           ),
         );
+        // A life increase clears the existing GPU trail on reseed. Fix extra
+        // marker life at 1 so even an early fade-out always triggers that clear.
+        If(instanceIndex.greaterThanEqual(baseCount), () => { position.w.assign(1); });
+        lifecycle.assign(vec2(0, 1));
         velocity.assign(respawnField);
         zonalSpeed.assign(0);
       });
@@ -235,6 +274,9 @@ export class GpuParticleSystem extends THREE.Sprite {
       .mul(0.08)
       .add(0.92);
     const lifeFade = float(particlePosition.w).clamp(0, 0.24).div(0.24);
+    const cycle = jetLifecycle.toAttribute();
+    const jetDisplayFade = mix(float(1), jetStrength.mul(cycle.x.smoothstep(0, JET_STREAMS_MODEL.tracerFadeSeconds))
+      .mul(cycle.y), instanceIndex.greaterThanEqual(baseCount).toFloat());
     const projection = meridionalProjectionNode(particlePosition.xyz, spinAngle, projectionProgress);
 
     const material = new THREE.SpriteNodeMaterial();
@@ -245,6 +287,7 @@ export class GpuParticleSystem extends THREE.Sprite {
     material.opacityNode = (shapeCircle() as Node<'float'>)
       .mul(shimmer)
       .mul(lifeFade)
+      .mul(jetDisplayFade)
       .mul(projection.visibility)
       .mul(0.68);
     material.transparent = true;
@@ -254,7 +297,8 @@ export class GpuParticleSystem extends THREE.Sprite {
     material.alphaToCoverage = true;
 
     super(material);
-    this.trails = new GpuParticleTrails(count, positions, velocities, projectionProgress, spinAngle, sectionBrightness, selectedCell);
+    this.trails = new GpuParticleTrails(count, positions, velocities, projectionProgress, spinAngle,
+      sectionBrightness, selectedCell, baseCount, jetLifecycle, jetStrength);
     this.add(this.trails);
     this.projectionProgress = projectionProgress;
     this.sectionBrightness = sectionBrightness;

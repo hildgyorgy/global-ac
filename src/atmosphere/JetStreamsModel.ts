@@ -3,17 +3,19 @@
  */
 export const JET_STREAMS_MODEL = {
   bands: [
-    { latitude: Math.PI / 6, width: 3.5 * Math.PI / 180 },
-    { latitude: 55 * Math.PI / 180, width: 4.5 * Math.PI / 180 },
+    { latitude: Math.PI / 6, width: 3.5 * Math.PI / 180, coreAltitude: .86, altitudeWidth: .095 },
+    { latitude: Math.PI / 3, width: 4.5 * Math.PI / 180, coreAltitude: .78, altitudeWidth: .12 },
   ],
-  coreAltitude: .84,
-  altitudeWidth: .10,
   lowerAltitude: .55,
   fullAltitude: .70,
   coreSpeedMultiplier: 2,
   // Earth-radius units/display second: prevents dead jets at cell stagnation.
   minimumReferenceSpeed: .06,
   switchTimeSeconds: .55,
+  extraTracerCount: 1500,
+  tracerCrossSectionRadius: .024,
+  tracerFadeSeconds: .55,
+  tracerExitWeight: .40,
 } as const;
 
 export interface LocalWind { eastward: number; northward: number; radial: number; }
@@ -23,10 +25,10 @@ export function jetStreamWeight(latitude: number, altitude: number): number {
   const t = Math.min(1, Math.max(0, (altitude - m.lowerAltitude) / (m.fullAltitude - m.lowerAltitude)));
   const latitudeWeight = m.bands.reduce((sum, band) => {
     const d = (Math.abs(latitude) - band.latitude) / band.width;
-    return sum + Math.exp(-.5 * d * d);
+    const height = (altitude - band.coreAltitude) / band.altitudeWidth;
+    return sum + Math.exp(-.5 * (d * d + height * height));
   }, 0);
-  const height = (altitude - m.coreAltitude) / m.altitudeWidth;
-  return Math.min(1, latitudeWeight * Math.exp(-.5 * height * height) * t * t * (3 - 2 * t));
+  return Math.min(1, latitudeWeight * t * t * (3 - 2 * t));
 }
 
 /** Total eastward wind; northward/radial motion is retained. The same tracers

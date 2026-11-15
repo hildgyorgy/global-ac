@@ -1,8 +1,9 @@
 import * as THREE from 'three/webgpu';
 import WebGPU from 'three/addons/capabilities/WebGPU.js';
-import { Fn, instanceIndex, instancedArray, mix } from 'three/tsl';
-import { jetEastwardSpeedNode } from '../src/atmosphere/JetStreamsNode';
-import { sampleJetEastwardSpeed } from '../src/atmosphere/JetStreamsModel';
+import { Fn, instanceIndex, instancedArray, mix, hash, PI2 } from 'three/tsl';
+import { jetEastwardSpeedNode, jetTracerSeedNode } from '../src/atmosphere/JetStreamsNode';
+import { sampleJetEastwardSpeed, JET_STREAMS_MODEL as model } from '../src/atmosphere/JetStreamsModel';
+import { CONFIG } from '../src/config';
 import { CORIOLIS_MODEL } from '../src/atmosphere/CoriolisModel';
 
 // One-time verification only. The production simulation never reads tracer
@@ -10,8 +11,8 @@ import { CORIOLIS_MODEL } from '../src/atmosphere/CoriolisModel';
 async function check(): Promise<void> {
   if (!WebGPU.isAvailable()) throw new Error('WebGPU is required for this check.');
   const cases: number[][] = [];
-  for (const degrees of [-90, -55, -30, 0, 30, 55, 90]) {
-    for (const altitude of [.2, .55, .7, .84, .96]) {
+  for (const degrees of [-90, -60, -30, 0, 30, 60, 90]) {
+    for (const altitude of [.2, .55, .7, .78, .86, .96]) {
       for (const strength of [0, .5, 1]) {
         for (const eastward of [-.2, 0, .2]) {
           cases.push([degrees * Math.PI / 180, altitude, eastward, .04, -.02, strength]);
@@ -32,6 +33,11 @@ async function check(): Promise<void> {
     dragOutput.element(instanceIndex).assign(mix(CORIOLIS_MODEL.switchOffDrag, CORIOLIS_MODEL.drag, w.y));
   })().compute(cases.length);
   const renderer = new THREE.WebGPURenderer();
+  const seeds = instancedArray(model.extraTracerCount, 'vec2');
+  const seedCompute = Fn(() => {
+    seeds.element(instanceIndex).assign(jetTracerSeedNode(instanceIndex.mod(4).toFloat(),
+      hash(instanceIndex.toFloat().add(71)).mul(PI2), hash(instanceIndex.toFloat().add(89)).sqrt()));
+  })().compute(model.extraTracerCount);
   try {
     await renderer.init();
     await renderer.computeAsync(compute);
@@ -53,7 +59,24 @@ async function check(): Promise<void> {
         throw new Error(`Non-damping or incorrect Coriolis switch response at case ${i}`);
       }
     }
-    document.getElementById('result')!.textContent = `PASS: ${cases.length} GPU/reference cases; max error ${maxError}`;
+    await renderer.computeAsync(seedCompute);
+    const seeded = new Float32Array(await renderer.getArrayBufferAsync(seeds.value));
+    for (let i = 0; i < model.extraTracerCount; i++) {
+      const slot = i % 4, band = model.bands[slot < 2 ? 0 : 1];
+      const latitude = seeded[i * 2], altitude = seeded[i * 2 + 1];
+      const centreLatitude = band.latitude * (slot % 2 ? -1 : 1);
+      const thickness = CONFIG.atmosphere.polarShellThickness
+        + (CONFIG.atmosphere.equatorialShellThickness - CONFIG.atmosphere.polarShellThickness)
+        * Math.cos(centreLatitude) ** 2;
+      const radius = CONFIG.earth.radius + .018 + band.coreAltitude * thickness;
+      const offset = Math.hypot((latitude - centreLatitude) * radius,
+        (altitude - band.coreAltitude) * thickness);
+      if (!Number.isFinite(offset) || offset > model.tracerCrossSectionRadius + 1e-6
+        || altitude < .04 || altitude > .96 || Math.sign(latitude) !== Math.sign(centreLatitude)) {
+        throw new Error(`Invalid jet seed at ${i}`);
+      }
+    }
+    document.getElementById('result')!.textContent = `PASS: ${cases.length} GPU/reference cases, ${model.extraTracerCount} jet seeds; max error ${maxError}`;
   } finally { renderer.dispose(); }
 }
 
