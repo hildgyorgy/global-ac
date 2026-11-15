@@ -3,10 +3,12 @@ import * as THREE from 'three/webgpu';
 interface Instrument {
   button: HTMLButtonElement;
   hit: THREE.Mesh;
-  knob: THREE.Mesh;
-  leftLabel?: THREE.Mesh;
-  rightLabel?: THREE.Mesh;
-  x: number;
+  face: THREE.Mesh<THREE.ShapeGeometry, THREE.MeshStandardNodeMaterial>;
+  rim: THREE.Mesh<THREE.ShapeGeometry, THREE.MeshStandardNodeMaterial>;
+  label: THREE.Mesh;
+  light: number;
+  pulseUntil: number;
+  onClick: () => void;
 }
 
 /** Real WebGPU desk instruments share depth with the globe and its particles.
@@ -25,7 +27,7 @@ export class DeskControls {
     color: 0xc5a268, metalness: .67, roughness: .33,
     emissive: 0x39230c, emissiveIntensity: .22,
   });
-  private readonly recess = new THREE.MeshStandardNodeMaterial({ color: 0x0c100d, roughness: .65 });
+  private previousFrame = performance.now();
 
   constructor(
     container: HTMLElement, private readonly element: HTMLElement, anchor: THREE.Group,
@@ -36,7 +38,7 @@ export class DeskControls {
     anchor.add(this.group);
     this.addTitle();
     const buttons = [...element.querySelectorAll<HTMLButtonElement>('button')];
-    buttons.forEach((button, index) => this.addInstrument(button, [-1.02, .57, 2.05][index]));
+    buttons.forEach((button, index) => this.addInstrument(button, [-.95, .63, 2.1][index]));
     canvas.addEventListener('pointerdown', this.down, true);
     window.addEventListener('pointermove', this.move, true);
     window.addEventListener('pointerup', this.up, true);
@@ -72,46 +74,47 @@ export class DeskControls {
   }
 
   private addInstrument(button: HTMLButtonElement, x: number): void {
-    const toggle = button.getAttribute('role') === 'switch';
-    const hit = new THREE.Mesh(new THREE.PlaneGeometry(toggle ? 1.47 : 1.26, .64),
+    const hit = new THREE.Mesh(new THREE.PlaneGeometry(1.42, .64),
       new THREE.MeshBasicNodeMaterial({ visible: false }));
     hit.position.set(x, 0, .01); this.group.add(hit);
-    const ring = new THREE.Mesh(new THREE.CapsuleGeometry(.075, toggle ? .22 : 0, 6, 16), this.brass);
-    ring.rotation.z = Math.PI / 2; ring.scale.z = .20;
-    ring.position.set(x, -.055, .004); this.group.add(ring);
-    const slot = new THREE.Mesh(new THREE.CapsuleGeometry(.062, toggle ? .22 : 0, 6, 16), this.recess);
-    slot.rotation.z = Math.PI / 2; slot.scale.z = .22;
-    slot.position.set(x, -.055, .009); this.group.add(slot);
-    const knob = new THREE.Mesh(new THREE.SphereGeometry(toggle ? .065 : .08, 24, 12), this.brass);
-    knob.scale.z = .4; knob.position.set(x, -.055, .035);
-    knob.castShadow = true; this.group.add(knob);
-    const item: Instrument = { button, hit, knob, x };
-    if (toggle) {
-      const labels = [...button.querySelectorAll('.switch-label')].map(label => label.textContent ?? '');
-      item.leftLabel = this.lettering(labels[0].toUpperCase(), .67, .26, 170);
-      item.leftLabel.position.set(x - .37, .19, .002);
-      item.rightLabel = this.lettering(labels[1].toUpperCase(), .64, .26, 170);
-      item.rightLabel.position.set(x + .37, .19, .002);
-    } else {
-      const label = this.lettering('ALAPHELYZET', 1.13, .26, 170);
-      label.position.set(x, .19, .002);
-      const emblem = this.lettering('↺', .13, .13, 200);
-      emblem.position.set(x, -.055, .07);
-    }
+    const pill = (width: number, height: number) => {
+      const r = height / 2, a = width / 2 - r;
+      const shape = new THREE.Shape();
+      shape.moveTo(-a, -r); shape.lineTo(a, -r);
+      shape.absarc(a, 0, r, -Math.PI / 2, Math.PI / 2, false);
+      shape.lineTo(-a, r);
+      shape.absarc(-a, 0, r, Math.PI / 2, Math.PI * 1.5, false);
+      shape.closePath(); return new THREE.ShapeGeometry(shape, 32);
+    };
+    const rim = new THREE.Mesh(pill(1.35, .36), this.brass.clone());
+    rim.position.set(x, 0, .001); this.group.add(rim);
+    const face = new THREE.Mesh(pill(1.30, .31), new THREE.MeshStandardNodeMaterial({
+      color: 0x100f0b, roughness: .55, metalness: .25,
+      emissive: 0x95632d, emissiveIntensity: .025,
+    }));
+    face.position.set(x, 0, .003); this.group.add(face);
+    const label = this.lettering((button.textContent ?? '').toUpperCase(), 1.10, .29, 180);
+    label.position.set(x, 0, .005);
+    const item: Instrument = { button, hit, face, rim, label, light: 0, pulseUntil: 0,
+      onClick: () => { item.pulseUntil = performance.now() + 550; } };
+    button.addEventListener('click', item.onClick);
     this.instruments.push(item);
   }
 
   render(): void {
+    const now = performance.now();
+    const easing = 1 - Math.exp(-Math.min(.05, (now - this.previousFrame) / 1000) * 10);
+    this.previousFrame = now;
     for (const item of this.instruments) {
-      const toggle = item.button.getAttribute('role') === 'switch';
-      const on = item.button.getAttribute('aria-checked') === 'true';
-      const destination = item.x + (toggle ? (on ? .105 : -.105) : 0);
-      item.knob.position.x = THREE.MathUtils.lerp(item.knob.position.x, destination, .16);
-      for (const [label, active] of [[item.leftLabel, !on], [item.rightLabel, on]] as const) {
-        if (label) (label.material as THREE.MeshStandardNodeMaterial).color.setScalar(active ? 1 : .55);
-      }
-      item.knob.scale.setScalar(document.activeElement === item.button ? 1.13 : 1);
-      item.knob.scale.z *= .4;
+      const toggle = item.button.hasAttribute('aria-pressed');
+      const on = toggle ? item.button.getAttribute('aria-pressed') === 'true' : now < item.pulseUntil;
+      item.light = THREE.MathUtils.lerp(item.light, on ? 1 : 0, easing);
+      item.face.material.emissiveIntensity = .025 + item.light * .38;
+      item.rim.material.emissiveIntensity = .18 + item.light * .85
+        + (document.activeElement === item.button ? .7 : 0);
+      const label = item.label.material as THREE.MeshStandardNodeMaterial;
+      label.emissiveIntensity = .3 + item.light * 1.7;
+      label.color.setScalar(.72 + item.light * .28);
     }
   }
 
@@ -181,6 +184,7 @@ export class DeskControls {
     window.removeEventListener('pointercancel', this.cancel);
     window.removeEventListener('blur', this.clear);
     this.textures.forEach(texture => texture.dispose());
+    this.instruments.forEach(item => item.button.removeEventListener('click', item.onClick));
     // App scene traversal owns geometry/material cleanup.
     this.element.remove();
   }

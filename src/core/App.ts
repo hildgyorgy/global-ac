@@ -63,13 +63,13 @@ export class App {
     this.sectionSwitch = new SectionSwitch(this.setSectionEnabled);
     this.coriolisSwitch = new SectionSwitch(
       (enabled) => this.particles.setCoriolisEnabled(enabled),
-      { label: 'Coriolis-hatás', off: 'Coriolis ki', on: 'Be' },
+      { label: 'Coriolis' },
     );
     this.instrumentControls.className = 'instrument-controls';
     this.resetButton.type = 'button';
     this.resetButton.className = 'section-switch reset-button';
-    this.resetButton.setAttribute('aria-label', 'Glóbusz alaphelyzetbe állítása');
-    this.resetButton.innerHTML = '<span class="reset-emblem" aria-hidden="true">↺</span><span class="switch-label">Alaphelyzet</span>';
+    this.resetButton.setAttribute('aria-label', 'Reset view');
+    this.resetButton.textContent = 'Reset';
     this.resetButton.addEventListener('click', this.resetView);
     this.instrumentControls.append(this.sectionSwitch.element, this.coriolisSwitch.element, this.resetButton);
     this.configureScene();

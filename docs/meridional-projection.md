@@ -1,6 +1,6 @@
 # Meridional projection
 
-The brass lever's **Vetület** mode replaces the former thin physical slice
+The illuminated **PROJECTION** button replaces the former thin physical slice
 with a meridional projection. It includes particles within ±22.5° of either
 half of the fixed meridian plane, with a soft edge from 20° to 22.5°.
 Both particles and their stored trail samples use the same GPU projection.

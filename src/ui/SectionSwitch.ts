@@ -1,27 +1,23 @@
-/** Small keyboard-accessible brass instrument lever. */
+/** Accessible toggle-button state for a recessed scene instrument. */
 export class SectionSwitch {
   readonly element = document.createElement('button');
 
   constructor(private readonly onChange: (enabled: boolean) => void, options = {
-    label: 'Meridionális vetület – 45 fokos sáv', off: 'Glóbusz', on: 'Vetület',
+    label: 'Projection',
   }) {
     this.element.className = 'section-switch';
     this.element.type = 'button';
-    this.element.setAttribute('role', 'switch');
-    this.element.setAttribute('aria-checked', 'false');
+    this.element.setAttribute('aria-pressed', 'false');
     this.element.setAttribute('aria-label', options.label);
-    this.element.innerHTML = `
-      <span class="switch-label globe-label">${options.off}</span>
-      <span class="lever-housing" aria-hidden="true"><span class="lever-arm"></span></span>
-      <span class="switch-label section-label">${options.on}</span>`;
+    this.element.textContent = options.label;
     this.element.addEventListener('click', () => {
-      const enabled = this.element.getAttribute('aria-checked') !== 'true';
+      const enabled = this.element.getAttribute('aria-pressed') !== 'true';
       this.setEnabled(enabled);
     });
   }
 
   setEnabled(enabled: boolean): void {
-    this.element.setAttribute('aria-checked', String(enabled));
+    this.element.setAttribute('aria-pressed', String(enabled));
     this.onChange(enabled);
   }
 
