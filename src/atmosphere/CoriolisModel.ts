@@ -5,10 +5,9 @@
  * a free parcel solver for both horizontal momentum equations.
  */
 export const CORIOLIS_MODEL = {
-  // Visual time scaling: doubled from 0.57 for stronger lateral drift.
+  // Exaggerated angular velocity in display-time units.
   displayAngularVelocity: 1.14,
-  // Preserve the previous displayed on-state damping, now expressed
-  // explicitly instead of relying on an incorrectly ordered TSL mix.
+  // Positive damping in both switch states.
   drag: 1.336,
   switchOffDrag: 1.4,
   minimumCosLatitude: 0.12,

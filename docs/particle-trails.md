@@ -1,11 +1,20 @@
-# Particle motion trails
+# Particle trails
 
-`GpuParticleTrails.ts` draws short histories for every 24th particle: 2,014 of the current 48,333 particles. Each cell budget is half the preceding version: Hadley 25,000, Ferrel 16,667, polar 6,666 (both hemispheres combined). Selection is stable and spans all cell budgets. Heads retain the same size and temperature color as every other particle.
+`GpuParticleTrails.ts` selects every `STRIDE`th particle, including supplementary
+jet markers. Trail count is `ceil(totalParticleCount / STRIDE)`; history length
+and sampling interval are defined beside that stride. Counts derive from
+`CONFIG.atmosphere` and `JET_STREAMS_MODEL`, rather than a separate fixed budget.
 
-Each trail stores 24 actual position/temperature samples in GPU storage, sampled approximately every 75 ms: a maximum of 1.8 seconds of simulated display time. A live head segment joins the current particle to the newest stored sample. Older segments fade smoothly to zero. Histories use the rotating Earth frame so they show wind relative to the surface and its meridians, rather than combining wind with the global visual spin. These are sampled paths, not velocity-extrapolated arrows or predefined streamlines.
+One GPU invocation owns a complete trail. Samples shift in descending order
+after advection, avoiding cross-invocation races. A life increase clears the
+history on respawn, preventing a line connecting unrelated positions. Initial
+histories are collapsed at their particle positions.
 
-One compute invocation owns each trail and shifts its history in descending order, avoiding cross-invocation read/write races. A separate GPU lifetime buffer detects respawns every frame. Respawns collapse the entire old history to the new position before rendering, even between sample ticks, preventing teleport streaks. Initial histories are likewise collapsed. The history update runs after particle advection.
+Vertices fetch history from GPU storage. The CPU supplies static topology and
+a global sampling uniform; it never reads production particle history back.
+Segments use Earth depth occlusion, additive blending and no depth writes.
+Age and life fades combine with the common temperature ramp, jet-marker fade,
+cell focus and meridional projection. The shared appearance functions live in
+`ParticleAppearanceNode.ts`.
 
-Line vertices fetch history directly from GPU storage using `vertexIndex`. CPU code updates only the global sampling uniform; no per-particle updates or GPU readbacks occur. History storage is approximately 773 KB, plus lifetime state and static zero-position topology. Lines use normal Earth depth occlusion, additive blending, and no depth writes. Temperature and age fade interpolate along each segment. The same spin-aware slab filter as the particle renderer is evaluated on interpolated trail positions, clipping trails to the fixed meridional section.
-
-TSL APIs follow the official [Three.js TSL reference](https://threejs.org/docs/pages/TSL.html).
+See [the model conventions](model.md) for the meaning of temperature and sampling.

@@ -27,7 +27,7 @@ pnpm preview
 ```
 
 With the development server running, `/tests/jet-gpu.html` checks the actual
-GPU jet calculations and tracer seed positions against the model invariants.
+GPU circulation, Coriolis, geometry and jet calculations against CPU references.
 GitHub Actions runs the physics tests and build, then deploys `dist/` to Pages.
 
 ## Project files
@@ -54,3 +54,6 @@ To reclaim dependency storage temporarily, remove `node_modules/`, then run
 `pnpm install --frozen-lockfile` before developing again. The deployed site does
 not depend on this local folder. Visitors receive the built application and
 assets, not the development dependency directory.
+
+Read [model assumptions](docs/model.md) and [verification instructions](docs/verification.md)
+for scientific limitations and reproducible checks.

@@ -1,7 +1,6 @@
 # Meridional projection
 
-The illuminated **PROJECTION** button replaces the former thin physical slice
-with a meridional projection. It includes particles within ±22.5° of either
+The illuminated **PROJECTION** button opens a meridional projection. It includes particles within ±22.5° of either
 half of the fixed meridian plane, with a soft edge from 20° to 22.5°.
 Both particles and their stored trail samples use the same GPU projection.
 
@@ -12,8 +11,7 @@ east–west motion is hidden, although it still influences which particles
 enter and leave the wedge. The simulation and GPU histories remain 3D.
 
 The globe mode, circulation, temperature model and particle budgets are
-unchanged. Projection brightness is 1.6× globe brightness (formerly the
-thin slice needed 2.4×); the broader sample supplies the extra density.
+unchanged. Projection brightness is 1.6× globe brightness to keep the selected wedge legible.
 
 ## Orientation annotations
 
@@ -50,7 +48,7 @@ with the rest of the projection diagram and add no dynamical geometry.
 ## Framing and staged transitions
 
 Both camera presets dolly toward the near desk edge, keeping the instrument
-row at its previous screen height while filling more of the upper image.
+row near the lower screen edge while filling more of the upper image.
 Magnification is constrained in narrow layouts to retain the title; wide
 projection views receive 15% magnification. Geometry and particle physics
 are not scaled or distorted by this camera adjustment.
@@ -87,3 +85,6 @@ the descending Hadley branches, not fixed geographic boundaries or a
 computed pressure field. Their widths are a display convention; real belts
 vary with longitude, season and weather. The bands and labels appear only
 in projection mode and do not affect particle positions or dynamics.
+
+Model assumptions are collected in [model.md](model.md); reproducible checks are in
+[verification.md](verification.md).

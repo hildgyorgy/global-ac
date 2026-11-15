@@ -1,13 +1,26 @@
-# Levitating globe in the library study
+# Library study
 
-`LibraryStudy.ts` places the globe above a recessed engraved brass disk in a walnut desk. There is no semicircular support or meridian cradle. The atmosphere's lowest extent stays above the plate. Props include a shaded brass reading lamp, a parchment circulation sketch, stacked leather books, an ink bottle, feather quill, spare nib pen, and rolled parchment. Dark bookshelves provide depth behind the instrument.
+`LibraryStudy.ts` builds a walnut desk, engraved levitation disk, shaded brass
+lamp, parchment sketch, leather books, ink bottle, feather quill, spare pen,
+scroll and dark bookshelves from Three.js geometry. Procedural CanvasTextures
+supply wood grain, parchment and engraving; no downloaded room models are used.
+The globe floats above the disk without a meridian cradle.
 
-All props are actual Three.js geometry. Walnut grain, parchment, and plate engraving are deterministic CanvasTextures generated locally at startup. No external models, new dependencies, image services, or remote environment assets are required. Materials use WebGPU node materials. One 1024-pixel directional shadow map gives the globe and props spatial contact on the desk. A warm directional key and local point light both originate at the visible lamp fixture; faint room ambient light keeps the globe's dark side readable. This remains artistic lighting, not a date-derived Sun model.
+An aligned directional key casts shadows; the lamp's local point light adds a
+pool of light, and faint ambient fill preserves dark-side visibility. The quill
+and its instanced fibres use lit materials. See [the model](model.md) for lighting
+and atmospheric limitations.
 
-`DeskControls.ts` renders four recessed pill-shaped buttons as real WebGPU meshes lying flush in the desktop along its near long edge. Their English labels, **PROJECTION**, **CORIOLIS**, **JET-STREAMS**, and **RESET**, sit below the centred “Global Atmospheric Circulation” inlay, which lies farther back on the tabletop toward the globe. The first three softly illuminate in warm amber while active; RESET pulses briefly when activated. Equal pills stay centred under the globe. The faces, brass rims and cutout CanvasTexture lettering share the scene's depth buffer: foreground particles can render in front of them. There is no DOM drawing layer or raised faceplate.
+`DeskControls.ts` places equal recessed brass pills in the tabletop: PROJECTION,
+CORIOLIS, JET-STREAMS and RESET. The title is inlaid above the row, toward the globe.
+Active controls glow softly in amber; RESET pulses briefly. Real depth testing
+allows foreground particles to pass in front of the controls.
 
-Native offscreen buttons retain pressed state, keyboard activation and English screen-reader labels; keyboard focus illuminates the corresponding brass rim. Mouse/touch taps raycast the physical controls, while drags, holds and multitouch retain camera gestures. Solid props and Earth occlude control picking; particles do not. Consumed control taps skip cell selection without interrupting OrbitControls pointer cleanup. All rendering remains WebGPURenderer, with TSL compute and GPU storage for the atmosphere.
+Native offscreen controls retain English screen-reader labels, keyboard access
+and pressed states. Physical mesh picking handles mouse/touch taps; drags and
+multitouch remain camera gestures. Solid scene geometry occludes control picks.
 
-The initial camera frames the desk from slightly above, with portrait-aspect fitting. Orbit limits keep the camera above the desk and on the front side of the library. Cell selection and atmospheric physics are unchanged. Section mode moves to a front-facing cut while retaining enough distance for the embedded control panel. Alaphelyzet returns to the new desk overview, preserving the globe's spin and Coriolis setting.
-
-Validation includes TypeScript, production build, WebGPU console checks, panel switching, section camera framing, globe selection, orbit/reset behavior, and a 768×1024 responsive viewport. A physical tablet has not been tested.
+Camera presets fit the desk in wide and portrait layouts. Orbit limits keep the
+camera above and in front of the desk. RESET restores the initial globe framing
+and clears cell focus while preserving both wind controls. In projection the
+room and title dim, while independently lit buttons remain legible.

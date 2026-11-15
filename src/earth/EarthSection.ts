@@ -44,7 +44,7 @@ export class EarthSection extends THREE.Group {
 
   setOpeningProgress(progress: number): void {
     const t = THREE.MathUtils.clamp((progress - .55) / .45, 0, 1);
-    const fade = t * t * (3 - 2 * t);
+    const fade = THREE.MathUtils.smoothstep(t, 0, 1);
     this.faceMaterial.color.copy(this.backgroundColor).lerp(this.sectionColor, fade);
     this.hazeOpacity.value = fade;
   }

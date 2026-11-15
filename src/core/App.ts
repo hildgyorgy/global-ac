@@ -149,7 +149,7 @@ export class App {
     // Faint library-room fill: preserve readable land on the night side.
     const ambient = new THREE.AmbientLight(0xaba18b, 0.22);
     const sun = new THREE.DirectionalLight(0xffd6a1, 2.8);
-    // The old fixed sunlight now comes from the visible reading lamp.
+    // Align the shadow-casting key with the visible reading lamp.
     sun.position.copy(this.study.lampPosition);
     sun.target.position.y = CONFIG.presentation.globeHeight;
     sun.castShadow = true;
@@ -232,7 +232,7 @@ export class App {
   private updateSectionTransition(): void {
     if (!this.transitioning) return;
     const elapsed = performance.now() - this.transitionStarted;
-    const smooth = (t: number) => t * t * (3 - 2 * t);
+    const smooth = (t: number) => THREE.MathUtils.smoothstep(t, 0, 1);
     const phase = (delay: number, duration: number) => duration === 0 ? 1
       : THREE.MathUtils.clamp((elapsed - delay) / duration, 0, 1);
     // Open first, then reveal the chart. Reverse that order on the way back.
@@ -305,8 +305,7 @@ export class App {
   private get sectionCameraDistance(): number {
     const aspect = this.container.clientWidth / Math.max(1, this.container.clientHeight);
     const halfFov = Math.tan(THREE.MathUtils.degToRad(CONFIG.camera.fieldOfView / 2));
-    // The flat instruments sit farther forward than the former tilted panel.
-    // Keep the near desk edge in frame even with a front-facing projection.
+    // Keep the near desk instruments in frame in a front-facing projection.
     return Math.max(11.8,
       1.85 * CONFIG.presentation.globeScale / (halfFov * Math.min(1, aspect)),
       5.1 / (halfFov * Math.max(.35, aspect)) + 2.35);

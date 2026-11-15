@@ -18,7 +18,7 @@ export function frameAroundDesk(position: Vector3, target: Vector3, magnificatio
 }
 
 export function defaultCameraFrame(aspect: number) {
-  // Include the inlaid title at the desk's left edge in portrait layouts.
+  // Include the inlaid title and controls in portrait layouts.
   const fit = Math.max(1, 1.45 / Math.max(0.35, aspect));
   // Wide views already nearly fill the top; portrait views have more headroom.
   const magnification = 1.035 + .020 * Math.max(0, Math.min(1, (1.7 - aspect) / .7));

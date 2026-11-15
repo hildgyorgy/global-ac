@@ -57,7 +57,7 @@ export class Earth extends THREE.Group {
     // Make the opaque sphere dark before swapping it for the cut face. Keep
     // depth testing intact instead of making continents transparent to tracers.
     const t = THREE.MathUtils.clamp(progress / .45, 0, 1);
-    this.presentationBrightness.value = 1 - t * t * (3 - 2 * t);
+    this.presentationBrightness.value = 1 - THREE.MathUtils.smoothstep(t, 0, 1);
   }
 
   dispose(): void {
