@@ -7,6 +7,7 @@ import { CONFIG } from '../config';
  */
 export class ProjectionAnnotations extends THREE.Group {
   private readonly textures: THREE.CanvasTexture[] = [];
+  private readonly referenceOpacities = new Map<THREE.Material, number>();
 
   constructor() {
     super();
@@ -85,4 +86,16 @@ export class ProjectionAnnotations extends THREE.Group {
   }
 
   dispose(): void { this.textures.forEach(texture => texture.dispose()); }
+
+  setOpacity(opacity: number): void {
+    this.visible = opacity > .001;
+    this.traverse(object => {
+      if (!(object instanceof THREE.Mesh || object instanceof THREE.Line)) return;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) {
+        if (!this.referenceOpacities.has(material)) this.referenceOpacities.set(material, material.opacity);
+        material.opacity = this.referenceOpacities.get(material)! * opacity;
+      }
+    });
+  }
 }

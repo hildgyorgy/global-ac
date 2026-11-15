@@ -1,4 +1,4 @@
-import { PerspectiveCamera } from 'three/webgpu';
+import { PerspectiveCamera, Vector3 } from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CONFIG } from '../config';
 
@@ -7,10 +7,25 @@ export interface CameraRig {
   controls: OrbitControls;
 }
 
-export function defaultCameraPosition(aspect: number): { x: number; y: number; z: number } {
+/** Dolly about the near desk edge: its screen position stays fixed while the
+ * globe and room grow upward, without stretching the rendered geometry. */
+export function frameAroundDesk(position: Vector3, target: Vector3, magnification: number) {
+  const anchor = new Vector3(0, -1.852, 2.35);
+  return {
+    position: position.clone().sub(anchor).divideScalar(magnification).add(anchor),
+    target: target.clone().sub(anchor).divideScalar(magnification).add(anchor),
+  };
+}
+
+export function defaultCameraFrame(aspect: number) {
   // Include the inlaid title at the desk's left edge in portrait layouts.
   const fit = Math.max(1, 1.45 / Math.max(0.35, aspect));
-  return { x: 0.15, y: CONFIG.camera.height * fit, z: CONFIG.camera.distance * fit };
+  // Wide views already nearly fill the top; portrait views have more headroom.
+  const magnification = 1.035 + .020 * Math.max(0, Math.min(1, (1.7 - aspect) / .7));
+  return frameAroundDesk(
+    new Vector3(.15, CONFIG.camera.height * fit, CONFIG.camera.distance * fit),
+    new Vector3(0, CONFIG.camera.targetHeight, 0), magnification,
+  );
 }
 
 export function createCameraRig(canvas: HTMLCanvasElement): CameraRig {
@@ -20,8 +35,8 @@ export function createCameraRig(canvas: HTMLCanvasElement): CameraRig {
     CONFIG.camera.near,
     CONFIG.camera.far,
   );
-  const initial = defaultCameraPosition(camera.aspect);
-  camera.position.set(initial.x, initial.y, initial.z);
+  const initial = defaultCameraFrame(camera.aspect);
+  camera.position.copy(initial.position);
 
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
@@ -36,7 +51,7 @@ export function createCameraRig(canvas: HTMLCanvasElement): CameraRig {
   controls.rotateSpeed = 0.45;
   controls.zoomSpeed = 0.7;
   controls.autoRotate = false;
-  controls.target.set(0, CONFIG.camera.targetHeight, 0);
+  controls.target.copy(initial.target);
   controls.update();
 
   return { camera, controls };

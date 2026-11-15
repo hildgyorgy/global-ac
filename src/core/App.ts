@@ -1,7 +1,7 @@
 import * as THREE from 'three/webgpu';
 import WebGPU from 'three/addons/capabilities/WebGPU.js';
 import { GpuParticleSystem } from '../atmosphere/GpuParticleSystem';
-import { createCameraRig, defaultCameraPosition, type CameraRig } from '../camera/createCameraRig';
+import { createCameraRig, defaultCameraFrame, frameAroundDesk, type CameraRig } from '../camera/createCameraRig';
 import { CONFIG } from '../config';
 import { Earth } from '../earth/Earth';
 import { EarthSection } from '../earth/EarthSection';
@@ -35,6 +35,10 @@ export class App {
   private sectionProgress = 0;
   private transitionStarted = 0;
   private transitionFrom = 0;
+  private diagramOpacity = 0;
+  private diagramFrom = 0;
+  private morphDuration = 1400;
+  private diagramDuration = 650;
   private transitioning = false;
   private readonly savedCameraPosition = new THREE.Vector3();
   private readonly cameraStart = new THREE.Vector3();
@@ -169,7 +173,10 @@ export class App {
     this.particles.setSpinAngle(this.spinAngle);
     this.particles.compute(this.renderer);
     this.updateSectionTransition();
-    this.cameraRig.controls.update();
+    // The scripted transition owns the camera until both phases finish.
+    // OrbitControls would otherwise clamp the front-facing camera as soon
+    // as the reverse toggle restores the globe's polar-angle limit.
+    if (!this.transitioning) this.cameraRig.controls.update();
     this.deskControls.render();
     this.renderer.render(this.scene, this.cameraRig.camera);
   };
@@ -179,13 +186,19 @@ export class App {
     if (enabled && !this.sectionEnabled) this.savedCameraPosition.copy(camera.position);
     this.sectionEnabled = enabled;
     this.transitionFrom = this.sectionProgress;
+    this.diagramFrom = this.diagramOpacity;
     this.transitionStarted = performance.now();
     this.cameraStart.copy(camera.position);
     this.targetStart.copy(controls.target);
-    this.targetDestination.set(0, enabled ? CONFIG.presentation.globeHeight : CONFIG.camera.targetHeight, 0);
+    const destination = enabled ? this.sectionCameraFrame : defaultCameraFrame(camera.aspect);
+    this.targetDestination.copy(destination.target);
     this.cameraDestination.copy(enabled
-      ? new THREE.Vector3(0, CONFIG.presentation.globeHeight, this.sectionCameraDistance)
+      ? destination.position
       : this.savedCameraPosition);
+    this.morphDuration = Math.abs(this.transitionFrom - (enabled ? 1 : 0)) > .0001
+      || this.cameraStart.distanceTo(this.cameraDestination) > .0001
+      || this.targetStart.distanceTo(this.targetDestination) > .0001 ? 1400 : 0;
+    this.diagramDuration = Math.abs(this.diagramFrom - (enabled ? 1 : 0)) > .0001 ? 650 : 0;
     controls.autoRotate = false;
     controls.maxPolarAngle = enabled ? Math.PI / 2 : 1.45;
     controls.maxDistance = enabled
@@ -199,25 +212,34 @@ export class App {
     this.selectedCell = -1;
     this.particles.setSelectedCell(-1);
     // Restore the initial globe view; preserve the atmospheric/Coriolis state.
-    const initial = defaultCameraPosition(this.cameraRig.camera.aspect);
-    this.savedCameraPosition.set(initial.x, initial.y, initial.z);
+    this.savedCameraPosition.copy(defaultCameraFrame(this.cameraRig.camera.aspect).position);
     this.sectionSwitch.setEnabled(false);
   };
 
   private updateSectionTransition(): void {
     if (!this.transitioning) return;
-    const t = Math.min(1, (performance.now() - this.transitionStarted) / 1400);
-    const eased = t * t * (3 - 2 * t);
+    const elapsed = performance.now() - this.transitionStarted;
+    const smooth = (t: number) => t * t * (3 - 2 * t);
+    const phase = (delay: number, duration: number) => duration === 0 ? 1
+      : THREE.MathUtils.clamp((elapsed - delay) / duration, 0, 1);
+    // Open first, then reveal the chart. Reverse that order on the way back.
+    // Capture current values on each toggle so interrupted transitions don't jump.
+    const eased = smooth(phase(this.sectionEnabled ? 0 : this.diagramDuration, this.morphDuration));
+    const diagramEased = smooth(phase(this.sectionEnabled ? this.morphDuration : 0, this.diagramDuration));
     this.sectionProgress = THREE.MathUtils.lerp(
       this.transitionFrom, this.sectionEnabled ? 1 : 0, eased,
     );
     this.particles.setSectionProgress(this.sectionProgress);
+    this.diagramOpacity = THREE.MathUtils.lerp(this.diagramFrom, this.sectionEnabled ? 1 : 0, diagramEased);
+    this.earthSection.setDiagramOpacity(this.diagramOpacity);
+    this.orientationGuides.setDiagramOpacity(this.diagramOpacity);
+    this.orientationGuides.setGlobeOpacity(1 - smooth(Math.min(1, this.sectionProgress * 2)));
     this.earth.visible = this.sectionProgress < 0.5;
     this.earthSection.visible = !this.earth.visible;
     this.orientationGuides.setSectionVisible(this.earthSection.visible);
     this.cameraRig.camera.position.lerpVectors(this.cameraStart, this.cameraDestination, eased);
     this.cameraRig.controls.target.lerpVectors(this.targetStart, this.targetDestination, eased);
-    if (t === 1) {
+    if (elapsed >= this.morphDuration + this.diagramDuration) {
       this.transitioning = false;
       this.cameraRig.controls.enabled = true;
       this.cameraRig.controls.enableRotate = !this.sectionEnabled;
@@ -234,13 +256,29 @@ export class App {
     this.renderer.setPixelRatio(this.pixelRatio);
     this.renderer.setSize(width, height);
     if (this.sectionEnabled) {
-      this.cameraRig.camera.position.set(0, CONFIG.presentation.globeHeight, this.sectionCameraDistance);
-      this.cameraDestination.copy(this.cameraRig.camera.position);
+      const frame = this.sectionCameraFrame;
+      if (!this.transitioning) {
+        this.cameraRig.camera.position.copy(frame.position);
+        this.cameraRig.controls.target.copy(frame.target);
+      }
+      this.cameraDestination.copy(frame.position);
+      this.targetDestination.copy(frame.target);
       this.cameraRig.controls.maxDistance = Math.max(
         CONFIG.camera.maxDistance, this.sectionCameraDistance * 1.5,
       );
     }
   };
+
+  private get sectionCameraFrame() {
+    const aspect = this.container.clientWidth / Math.max(1, this.container.clientHeight);
+    // Wide views can use the empty upper margin; narrow views must also keep
+    // the left-hand desk inscription inside the frame.
+    const magnification = 1.04 + .11 * THREE.MathUtils.clamp((aspect - 1.2) / .5, 0, 1);
+    return frameAroundDesk(
+      new THREE.Vector3(0, CONFIG.presentation.globeHeight, this.sectionCameraDistance),
+      new THREE.Vector3(0, CONFIG.presentation.globeHeight, 0), magnification,
+    );
+  }
 
   private get sectionCameraDistance(): number {
     const aspect = this.container.clientWidth / Math.max(1, this.container.clientHeight);

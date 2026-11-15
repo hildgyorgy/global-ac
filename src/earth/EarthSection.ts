@@ -15,7 +15,7 @@ export class EarthSection extends THREE.Group {
     face.position.z = -0.095;
     // Start exactly at the physical surface. No outline or shifted surface:
     // this neutral haze fades through the existing particle clearance.
-    const hazeWidth = .085;
+    const hazeWidth = .17;
     const hazeMaterial = new THREE.MeshBasicNodeMaterial({
       color: 0x79817a, transparent: true, depthWrite: false, side: THREE.DoubleSide,
     });
@@ -31,4 +31,6 @@ export class EarthSection extends THREE.Group {
   }
 
   dispose(): void { this.annotations.dispose(); }
+
+  setDiagramOpacity(opacity: number): void { this.annotations.setOpacity(opacity); }
 }

@@ -30,13 +30,29 @@ to keep its longer name inside the globe. Horse-latitude labels similarly
 straddle their soft band centres.
 
 The projection has no gold surface-outline ring. A neutral, faint haze begins
-at the actual surface radius and fades outward across 0.085 model units. This
+at the actual surface radius and fades outward across 0.17 model units. This
 is a graphical bridge across the existing clearance, not a pressure, density
 or temperature field; particle altitude is unchanged and the haze is absent
 from the globe view.
 The rotation axis uses dash–dot marks, tropics and polar circles short dashes
 in both views. Equator and meridians retain continuous lines. Horse-latitude
 bands are unchanged.
+
+## Framing and staged transitions
+
+Both camera presets dolly toward the near desk edge, keeping the instrument
+row at its previous screen height while filling more of the upper image.
+Magnification is constrained in narrow layouts to retain the title; wide
+projection views receive 15% magnification. Geometry and particle physics
+are not scaled or distorted by this camera adjustment.
+
+Opening consists of a 1.4-second particle/camera morph followed immediately
+by a 0.65-second fade-in of axis, parallels, labels and horse-latitude bands.
+Closing first fades that diagram out, then reverses the morph. Globe guides
+fade away during opening and return during closing. Reversals start from
+current shape, camera and opacity values, so toggling mid-transition does
+not reset them. Scripted camera movement temporarily suspends OrbitControls
+updates to prevent polar-limit clamping during the fade-only phase.
 
 Horse latitudes are shown separately as soft illustrative 25–35° bands,
 labelled ≈30° N/S. These indicate the subtropical high-pressure regions near

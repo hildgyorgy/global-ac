@@ -6,6 +6,7 @@ export class OrientationGuides extends THREE.Group {
   private readonly globeGuides = new THREE.Group();
   private readonly sectionGuides = new THREE.Group();
   private readonly meridians = new THREE.Group();
+  private readonly referenceOpacities = new Map<THREE.Material, number>();
 
   constructor() {
     super();
@@ -102,15 +103,15 @@ export class OrientationGuides extends THREE.Group {
         new THREE.Vector3(-halfChord, sectionHeight, -0.09),
         new THREE.Vector3(halfChord, sectionHeight, -0.09),
       ];
-      this.sectionGuides.add(degrees === 0 ? line(chord, material)
-        : patternedLine(chord, material, latitudePattern));
+      this.sectionGuides.add(degrees === 0 ? line(chord, material.clone())
+        : patternedLine(chord, material.clone(), latitudePattern));
     }
 
     // In section, both markings lie just in front of the opaque cut face.
     this.sectionGuides.add(patternedLine([
       new THREE.Vector3(0, -axisExtent, -0.09),
       new THREE.Vector3(0, axisExtent, -0.09),
-    ], axisMaterial, axisPattern));
+    ], axisMaterial.clone(), axisPattern));
     this.sectionGuides.visible = false;
     this.add(this.globeGuides, this.sectionGuides);
   }
@@ -118,6 +119,21 @@ export class OrientationGuides extends THREE.Group {
   setSectionVisible(section: boolean): void {
     this.globeGuides.visible = !section;
     this.sectionGuides.visible = section;
+  }
+
+  setDiagramOpacity(opacity: number): void {
+    this.setOpacity(this.sectionGuides, opacity);
+  }
+
+  setGlobeOpacity(opacity: number): void { this.setOpacity(this.globeGuides, opacity); }
+
+  private setOpacity(group: THREE.Group, opacity: number): void {
+    group.traverse(object => {
+      if (!(object instanceof THREE.Line)) return;
+      const material = object.material as THREE.LineBasicNodeMaterial;
+      if (!this.referenceOpacities.has(material)) this.referenceOpacities.set(material, material.opacity);
+      material.opacity = this.referenceOpacities.get(material)! * opacity;
+    });
   }
 
   setSpinAngle(angle: number): void {
