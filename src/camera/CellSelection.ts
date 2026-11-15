@@ -4,8 +4,10 @@ import { particleRadius } from '../atmosphere/geometry';
 import { HADLEY_MODEL } from '../atmosphere/HadleyModel';
 
 export function cellAtLatitude(latitude: number): number {
-  return Math.min(2, Math.floor(Math.abs(latitude) / HADLEY_MODEL.cellEdgeRadians))
-    + (latitude < 0 ? 3 : 0);
+  return (
+    Math.min(2, Math.floor(Math.abs(latitude) / HADLEY_MODEL.cellEdgeRadians)) +
+    (latitude < 0 ? 3 : 0)
+  );
 }
 
 /** Tap/click recognition independent of OrbitControls. Multitouch, holds and
@@ -13,7 +15,13 @@ export function cellAtLatitude(latitude: number): number {
  */
 export class CellSelection {
   private readonly pointers = new Set<number>();
-  private gesture: { id: number; x: number; y: number; started: number; cancelled: boolean } | null = null;
+  private gesture: {
+    id: number;
+    x: number;
+    y: number;
+    started: number;
+    cancelled: boolean;
+  } | null = null;
   private readonly raycaster = new THREE.Raycaster();
   private readonly localRay = new THREE.Ray();
   private readonly inverse = new THREE.Matrix4();
@@ -43,15 +51,19 @@ export class CellSelection {
       return;
     }
     this.gesture = {
-      id: event.pointerId, x: event.clientX, y: event.clientY,
-      started: performance.now(), cancelled: !this.canSelect(),
+      id: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      started: performance.now(),
+      cancelled: !this.canSelect(),
     };
   };
 
   private move = (event: PointerEvent): void => {
     const gesture = this.gesture;
     if (gesture?.id !== event.pointerId) return;
-    if (Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 7) gesture.cancelled = true;
+    if (Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 7)
+      gesture.cancelled = true;
   };
 
   private up = (event: PointerEvent): void => {
@@ -77,19 +89,25 @@ export class CellSelection {
 
   private pick(x: number, y: number): number {
     const rect = this.canvas.getBoundingClientRect();
-    this.pointer.set((x - rect.left) / rect.width * 2 - 1, -(y - rect.top) / rect.height * 2 + 1);
+    this.pointer.set(
+      ((x - rect.left) / rect.width) * 2 - 1,
+      (-(y - rect.top) / rect.height) * 2 + 1,
+    );
     this.raycaster.setFromCamera(this.pointer, this.camera);
     this.globe.updateWorldMatrix(true, false);
     this.inverse.copy(this.globe.matrixWorld).invert();
     this.localRay.copy(this.raycaster.ray).applyMatrix4(this.inverse);
     const origin = new THREE.Vector3();
     if (this.isSection()) {
-      if (!this.localRay.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), this.point)) return -1;
+      if (!this.localRay.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), this.point))
+        return -1;
       if (this.point.length() < CONFIG.earth.radius) return -1;
     } else {
       // Visible hemisphere latitude on the surface, or the limb latitude for
       // taps outside the surface but inside the exaggerated atmospheric halo.
-      if (!this.localRay.intersectSphere(new THREE.Sphere(origin, CONFIG.earth.radius), this.point)) {
+      if (
+        !this.localRay.intersectSphere(new THREE.Sphere(origin, CONFIG.earth.radius), this.point)
+      ) {
         this.localRay.closestPointToPoint(origin, this.point);
       }
     }

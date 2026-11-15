@@ -9,7 +9,10 @@ if (!container) {
 }
 
 const app = new App(container);
-void startWithErrorBoundary(() => app.start(), error => app.showInitializationError(error));
+void startWithErrorBoundary(
+  () => app.start(),
+  (error) => app.showInitializationError(error),
+);
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => app.dispose());

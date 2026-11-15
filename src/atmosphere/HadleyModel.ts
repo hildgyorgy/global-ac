@@ -21,10 +21,7 @@ export interface HadleySample {
 }
 
 /** Reference implementation for tests, documentation, and non-GPU consumers. */
-export function sampleHadleyModel(
-  latitude: number,
-  normalizedAltitude: number,
-): HadleySample {
+export function sampleHadleyModel(latitude: number, normalizedAltitude: number): HadleySample {
   const altitude = Math.min(1, Math.max(0, normalizedAltitude));
   const hemisphere = latitude < 0 ? -1 : 1;
   const absoluteLatitude = Math.min(Math.PI / 2 - 1e-6, Math.abs(latitude));
@@ -34,13 +31,15 @@ export function sampleHadleyModel(
 
   return {
     latitudeVelocity:
-      -hemisphere * direction *
+      -hemisphere *
+      direction *
       HADLEY_MODEL.meridionalSpeed *
       Math.sin(Math.PI * cellPosition) *
       Math.cos(Math.PI * altitude),
     longitudeVelocity: 0,
     altitudeVelocity:
-      direction * HADLEY_MODEL.verticalSpeed *
+      direction *
+      HADLEY_MODEL.verticalSpeed *
       Math.cos(Math.PI * cellPosition) *
       Math.sin(Math.PI * altitude),
     temperatureKelvin:
@@ -52,5 +51,8 @@ export function sampleHadleyModel(
 
 /** Convert physical temperature to the normalized rendering attribute. */
 export function normalizeTemperatureKelvin(kelvin: number): number {
-  return Math.min(1, Math.max(0, (kelvin - HADLEY_MODEL.minimumKelvin) / HADLEY_MODEL.temperatureRangeKelvin));
+  return Math.min(
+    1,
+    Math.max(0, (kelvin - HADLEY_MODEL.minimumKelvin) / HADLEY_MODEL.temperatureRangeKelvin),
+  );
 }

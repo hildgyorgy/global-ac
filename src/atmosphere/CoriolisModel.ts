@@ -19,14 +19,23 @@ export const CORIOLIS_MODEL = {
 
 /** Visual correction only; the physical sin(latitude) factor stays intact. */
 export function coriolisVisualScale(latitude: number): number {
-  const t = Math.min(1, Math.max(0,
-    (Math.abs(latitude) - CORIOLIS_MODEL.polarTaperStart) /
-    (CORIOLIS_MODEL.polarTaperEnd - CORIOLIS_MODEL.polarTaperStart),
-  ));
+  const t = Math.min(
+    1,
+    Math.max(
+      0,
+      (Math.abs(latitude) - CORIOLIS_MODEL.polarTaperStart) /
+        (CORIOLIS_MODEL.polarTaperEnd - CORIOLIS_MODEL.polarTaperStart),
+    ),
+  );
   return 1 - (1 - CORIOLIS_MODEL.polarVisualScale) * t * t * (3 - 2 * t);
 }
 
 export function zonalCoriolisAcceleration(latitude: number, northwardSpeed: number): number {
-  return 2 * CORIOLIS_MODEL.displayAngularVelocity * Math.sin(latitude) * northwardSpeed
-    * coriolisVisualScale(latitude);
+  return (
+    2 *
+    CORIOLIS_MODEL.displayAngularVelocity *
+    Math.sin(latitude) *
+    northwardSpeed *
+    coriolisVisualScale(latitude)
+  );
 }

@@ -1,12 +1,24 @@
 import * as THREE from 'three/webgpu';
 import type { ComputeNode, Node, StorageBufferNode } from 'three/webgpu';
 import {
-  Fn, If, Loop, float, instanceIndex, instancedArray,
-  uniform, varying, vec4, vertexIndex,
+  Fn,
+  If,
+  Loop,
+  float,
+  instanceIndex,
+  instancedArray,
+  uniform,
+  varying,
+  vec4,
+  vertexIndex,
 } from 'three/tsl';
 import { cellFocusNode } from './CellSelectionNode';
 import { meridionalProjectionNode } from './MeridionalProjectionNode';
-import { temperatureColorNode, particleLifeFadeNode, jetTracerFadeNode } from './ParticleAppearanceNode';
+import {
+  temperatureColorNode,
+  particleLifeFadeNode,
+  jetTracerFadeNode,
+} from './ParticleAppearanceNode';
 
 interface ParticleTrailsOptions {
   particleCount: number;
@@ -28,15 +40,28 @@ const SAMPLE_INTERVAL = 0.075;
 /** Short, Earth-relative motion histories for every 24th tracer.
  * One GPU invocation owns an entire trail: shifting samples has no data races.
  */
-export class GpuParticleTrails extends THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicNodeMaterial> {
+export class GpuParticleTrails extends THREE.LineSegments<
+  THREE.BufferGeometry,
+  THREE.LineBasicNodeMaterial
+> {
   private readonly initializeNode: ComputeNode;
   private readonly updateNode: ComputeNode;
   private readonly sampleNow;
   private previousTime = 0;
   private sampleAccumulator = 0;
 
-  constructor({ particleCount, positions, velocities, projectionProgress, spinAngle,
-    sectionBrightness, selectedCell, baseParticleCount, jetLifecycle, jetStrength }: ParticleTrailsOptions) {
+  constructor({
+    particleCount,
+    positions,
+    velocities,
+    projectionProgress,
+    spinAngle,
+    sectionBrightness,
+    selectedCell,
+    baseParticleCount,
+    jetLifecycle,
+    jetStrength,
+  }: ParticleTrailsOptions) {
     const trailCount = Math.ceil(particleCount / STRIDE);
     const history = instancedArray(trailCount * SAMPLES, 'vec4').setName('trailHistory');
     const previousLife = instancedArray(trailCount, 'float').setName('trailPreviousLife');
@@ -46,9 +71,13 @@ export class GpuParticleTrails extends THREE.LineSegments<THREE.BufferGeometry, 
       const particle = instanceIndex.mul(STRIDE);
       const point = vec4(positions.element(particle).xyz, velocities.element(particle).w);
       const base = instanceIndex.toInt().mul(SAMPLES);
-      Loop(SAMPLES, ({ i }) => { history.element(base.add(i)).assign(point); });
+      Loop(SAMPLES, ({ i }) => {
+        history.element(base.add(i)).assign(point);
+      });
       previousLife.element(instanceIndex).assign(positions.element(particle).w);
-    })().compute(trailCount).setName('InitializeParticleTrails');
+    })()
+      .compute(trailCount)
+      .setName('InitializeParticleTrails');
 
     const updateNode = Fn(() => {
       const particle = instanceIndex.mul(STRIDE);
@@ -59,17 +88,24 @@ export class GpuParticleTrails extends THREE.LineSegments<THREE.BufferGeometry, 
       // Respawning increases life. Clear every sample before the draw, even
       // between sample ticks, so a teleport never creates a connecting streak.
       If(position.w.greaterThan(lastLife), () => {
-        Loop(SAMPLES, ({ i }) => { history.element(base.add(i)).assign(point); });
+        Loop(SAMPLES, ({ i }) => {
+          history.element(base.add(i)).assign(point);
+        });
       }).Else(() => {
         If(sampleNow.greaterThan(0), () => {
-          Loop({ type: 'int', start: SAMPLES - 1, end: 0, condition: '>', update: '--' }, ({ i }) => {
-            history.element(base.add(i)).assign(history.element(base.add(i).sub(1)));
-          });
+          Loop(
+            { type: 'int', start: SAMPLES - 1, end: 0, condition: '>', update: '--' },
+            ({ i }) => {
+              history.element(base.add(i)).assign(history.element(base.add(i).sub(1)));
+            },
+          );
           history.element(base).assign(point);
         });
       });
       lastLife.assign(position.w);
-    })().compute(trailCount).setName('UpdateParticleTrails');
+    })()
+      .compute(trailCount)
+      .setName('UpdateParticleTrails');
 
     const segment = vertexIndex.div(2);
     const trail = segment.div(SAMPLES);
@@ -87,7 +123,9 @@ export class GpuParticleTrails extends THREE.LineSegments<THREE.BufferGeometry, 
     const fade = varying(float(1).sub(age.toFloat().add(1).div(SAMPLES)).max(0).pow(1.5));
     const lifeFade = varying(particleLifeFadeNode(positions.element(particle).w));
     const cycle = jetLifecycle.element(particle);
-    const jetFade = varying(jetTracerFadeNode(particle.toFloat(), float(baseParticleCount), cycle, jetStrength));
+    const jetFade = varying(
+      jetTracerFadeNode(particle.toFloat(), float(baseParticleCount), cycle, jetStrength),
+    );
     const slicePosition = varying(trailPoint.xyz);
     const latitude = slicePosition.y.div(slicePosition.length().max(0.001)).clamp(-1, 1).asin();
     const focus = cellFocusNode(latitude, selectedCell);
@@ -95,7 +133,9 @@ export class GpuParticleTrails extends THREE.LineSegments<THREE.BufferGeometry, 
     const visibility = varying(projection.visibility);
 
     const material = new THREE.LineBasicNodeMaterial({
-      transparent: true, depthWrite: false, depthTest: true,
+      transparent: true,
+      depthWrite: false,
+      depthTest: true,
       blending: THREE.AdditiveBlending,
     });
     material.positionNode = projection.position;
@@ -104,7 +144,10 @@ export class GpuParticleTrails extends THREE.LineSegments<THREE.BufferGeometry, 
     const geometry = new THREE.BufferGeometry();
     // Only topology lives on the CPU. All animated vertex positions come from
     // GPU storage via vertexIndex; no history is read back or uploaded per frame.
-    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(trailCount * SAMPLES * 2 * 3), 3));
+    geometry.setAttribute(
+      'position',
+      new THREE.BufferAttribute(new Float32Array(trailCount * SAMPLES * 2 * 3), 3),
+    );
     super(geometry, material);
     this.frustumCulled = false;
     this.renderOrder = 4;

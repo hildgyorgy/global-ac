@@ -11,12 +11,12 @@ export const CONFIG = {
     axialTiltDegrees: -23.4,
     rotationRadians: -0.32,
     // One full rotation in about 3 minutes 33 seconds.
-    spinRadiansPerSecond: (Math.PI * 2 / 60) * 0.28125,
+    spinRadiansPerSecond: ((Math.PI * 2) / 60) * 0.28125,
   },
   atmosphere: {
     cellParticleCounts,
     particleCount: cellParticleCounts.hadley + cellParticleCounts.ferrel + cellParticleCounts.polar,
-    equatorialShellThickness: 0.30,
+    equatorialShellThickness: 0.3,
     polarShellThickness: 0.15,
     particleSize: 0.0045,
     flowSpeed: 1,

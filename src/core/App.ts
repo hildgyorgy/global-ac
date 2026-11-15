@@ -1,7 +1,12 @@
 import * as THREE from 'three/webgpu';
 import WebGPU from 'three/addons/capabilities/WebGPU.js';
 import { GpuParticleSystem } from '../atmosphere/GpuParticleSystem';
-import { createCameraRig, defaultCameraFrame, frameAroundDesk, type CameraRig } from '../camera/createCameraRig';
+import {
+  createCameraRig,
+  defaultCameraFrame,
+  frameAroundDesk,
+  type CameraRig,
+} from '../camera/createCameraRig';
 import { CONFIG } from '../config';
 import { Earth } from '../earth/Earth';
 import { EarthSection } from '../earth/EarthSection';
@@ -75,7 +80,8 @@ export class App {
       (enabled) => {
         this.particles.setJetsEnabled(enabled);
         this.earthSection.setJetsEnabled(enabled);
-      }, { label: 'Jet-streams' },
+      },
+      { label: 'Jet-streams' },
     );
     this.instrumentControls.className = 'instrument-controls';
     this.resetButton.type = 'button';
@@ -83,14 +89,26 @@ export class App {
     this.resetButton.setAttribute('aria-label', 'Reset view');
     this.resetButton.textContent = 'Reset';
     this.resetButton.addEventListener('click', this.resetView);
-    this.instrumentControls.append(this.sectionSwitch.element, this.coriolisSwitch.element,
-      this.jetsSwitch.element, this.resetButton);
+    this.instrumentControls.append(
+      this.sectionSwitch.element,
+      this.coriolisSwitch.element,
+      this.jetsSwitch.element,
+      this.resetButton,
+    );
     this.configureScene();
-    this.deskControls = new DeskControls(container, this.instrumentControls, this.study.controlAnchor,
-      this.renderer.domElement, this.cameraRig.camera);
+    this.deskControls = new DeskControls(
+      container,
+      this.instrumentControls,
+      this.study.controlAnchor,
+      this.renderer.domElement,
+      this.cameraRig.camera,
+    );
     this.cellSelection = new CellSelection(
-      this.renderer.domElement, this.cameraRig.camera, this.globe,
-      () => this.sectionEnabled, () => this.running && !this.transitioning,
+      this.renderer.domElement,
+      this.cameraRig.camera,
+      this.globe,
+      () => this.sectionEnabled,
+      () => this.running && !this.transitioning,
       (cell) => {
         this.selectedCell = cell === this.selectedCell ? -1 : cell;
         this.particles.setSelectedCell(this.selectedCell);
@@ -154,9 +172,12 @@ export class App {
     sun.target.position.y = CONFIG.presentation.globeHeight;
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
-    sun.shadow.camera.left = -5; sun.shadow.camera.right = 5;
-    sun.shadow.camera.top = 4; sun.shadow.camera.bottom = -4;
-    sun.shadow.camera.near = 0.1; sun.shadow.camera.far = 18;
+    sun.shadow.camera.left = -5;
+    sun.shadow.camera.right = 5;
+    sun.shadow.camera.top = 4;
+    sun.shadow.camera.bottom = -4;
+    sun.shadow.camera.near = 0.1;
+    sun.shadow.camera.far = 18;
     sun.shadow.normalBias = 0.025;
     sun.shadow.intensity = 0.7;
     sun.shadow.radius = 3;
@@ -205,13 +226,14 @@ export class App {
     this.targetStart.copy(controls.target);
     const destination = enabled ? this.sectionCameraFrame : defaultCameraFrame(camera.aspect);
     this.targetDestination.copy(destination.target);
-    this.cameraDestination.copy(enabled
-      ? destination.position
-      : this.savedCameraPosition);
-    this.morphDuration = Math.abs(this.transitionFrom - (enabled ? 1 : 0)) > .0001
-      || this.cameraStart.distanceTo(this.cameraDestination) > .0001
-      || this.targetStart.distanceTo(this.targetDestination) > .0001 ? 1400 : 0;
-    this.diagramDuration = Math.abs(this.diagramFrom - (enabled ? 1 : 0)) > .0001 ? 650 : 0;
+    this.cameraDestination.copy(enabled ? destination.position : this.savedCameraPosition);
+    this.morphDuration =
+      Math.abs(this.transitionFrom - (enabled ? 1 : 0)) > 0.0001 ||
+      this.cameraStart.distanceTo(this.cameraDestination) > 0.0001 ||
+      this.targetStart.distanceTo(this.targetDestination) > 0.0001
+        ? 1400
+        : 0;
+    this.diagramDuration = Math.abs(this.diagramFrom - (enabled ? 1 : 0)) > 0.0001 ? 650 : 0;
     controls.autoRotate = false;
     controls.maxPolarAngle = enabled ? Math.PI / 2 : 1.45;
     controls.maxDistance = enabled
@@ -233,14 +255,18 @@ export class App {
     if (!this.transitioning) return;
     const elapsed = performance.now() - this.transitionStarted;
     const smooth = (t: number) => THREE.MathUtils.smoothstep(t, 0, 1);
-    const phase = (delay: number, duration: number) => duration === 0 ? 1
-      : THREE.MathUtils.clamp((elapsed - delay) / duration, 0, 1);
+    const phase = (delay: number, duration: number) =>
+      duration === 0 ? 1 : THREE.MathUtils.clamp((elapsed - delay) / duration, 0, 1);
     // Open first, then reveal the chart. Reverse that order on the way back.
     // Capture current values on each toggle so interrupted transitions don't jump.
     const eased = smooth(phase(this.sectionEnabled ? 0 : this.diagramDuration, this.morphDuration));
-    const diagramEased = smooth(phase(this.sectionEnabled ? this.morphDuration : 0, this.diagramDuration));
+    const diagramEased = smooth(
+      phase(this.sectionEnabled ? this.morphDuration : 0, this.diagramDuration),
+    );
     this.sectionProgress = THREE.MathUtils.lerp(
-      this.transitionFrom, this.sectionEnabled ? 1 : 0, eased,
+      this.transitionFrom,
+      this.sectionEnabled ? 1 : 0,
+      eased,
     );
     this.particles.setSectionProgress(this.sectionProgress);
     const illumination = 1 - this.sectionProgress;
@@ -249,7 +275,11 @@ export class App {
     this.deskControls.setRoomIllumination(illumination);
     this.earth.setSectionProgress(this.sectionProgress);
     this.earthSection.setOpeningProgress(this.sectionProgress);
-    this.diagramOpacity = THREE.MathUtils.lerp(this.diagramFrom, this.sectionEnabled ? 1 : 0, diagramEased);
+    this.diagramOpacity = THREE.MathUtils.lerp(
+      this.diagramFrom,
+      this.sectionEnabled ? 1 : 0,
+      diagramEased,
+    );
     this.earthSection.setDiagramOpacity(this.diagramOpacity);
     this.orientationGuides.setDiagramOpacity(this.diagramOpacity);
     this.orientationGuides.setGlobeOpacity(1 - smooth(Math.min(1, this.sectionProgress * 2)));
@@ -286,7 +316,8 @@ export class App {
       this.cameraDestination.copy(frame.position);
       this.targetDestination.copy(frame.target);
       this.cameraRig.controls.maxDistance = Math.max(
-        CONFIG.camera.maxDistance, this.sectionCameraDistance * 1.5,
+        CONFIG.camera.maxDistance,
+        this.sectionCameraDistance * 1.5,
       );
     }
   };
@@ -295,10 +326,11 @@ export class App {
     const aspect = this.container.clientWidth / Math.max(1, this.container.clientHeight);
     // Wide views can use the empty upper margin; narrow views must also keep
     // the left-hand desk inscription inside the frame.
-    const magnification = 1.04 + .11 * THREE.MathUtils.clamp((aspect - 1.2) / .5, 0, 1);
+    const magnification = 1.04 + 0.11 * THREE.MathUtils.clamp((aspect - 1.2) / 0.5, 0, 1);
     return frameAroundDesk(
       new THREE.Vector3(0, CONFIG.presentation.globeHeight, this.sectionCameraDistance),
-      new THREE.Vector3(0, CONFIG.presentation.globeHeight, 0), magnification,
+      new THREE.Vector3(0, CONFIG.presentation.globeHeight, 0),
+      magnification,
     );
   }
 
@@ -306,16 +338,20 @@ export class App {
     const aspect = this.container.clientWidth / Math.max(1, this.container.clientHeight);
     const halfFov = Math.tan(THREE.MathUtils.degToRad(CONFIG.camera.fieldOfView / 2));
     // Keep the near desk instruments in frame in a front-facing projection.
-    return Math.max(11.8,
-      1.85 * CONFIG.presentation.globeScale / (halfFov * Math.min(1, aspect)),
-      5.1 / (halfFov * Math.max(.35, aspect)) + 2.35);
+    return Math.max(
+      11.8,
+      (1.85 * CONFIG.presentation.globeScale) / (halfFov * Math.min(1, aspect)),
+      5.1 / (halfFov * Math.max(0.35, aspect)) + 2.35,
+    );
   }
 
   showInitializationError(error: unknown): void {
     this.running = false;
     if (this.renderer.hasInitialized()) void this.renderer.setAnimationLoop(null);
     console.error('Atmospheric globe initialization failed:', error);
-    this.showWebGpuError('The globe could not start its WebGPU renderer. Please reload the page or try another WebGPU-capable browser.');
+    this.showWebGpuError(
+      'The globe could not start its WebGPU renderer. Please reload the page or try another WebGPU-capable browser.',
+    );
   }
 
   private showWebGpuError(text = 'This prototype requires a browser with WebGPU enabled.'): void {

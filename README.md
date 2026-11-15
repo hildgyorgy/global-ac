@@ -9,7 +9,7 @@ projection reveals the vertical circulation.
 
 ## Development
 
-Use Node.js 22 or newer and pnpm 10 (the version used in CI).
+Use Node.js 22.13 or newer and pnpm 10 (the version used in CI).
 
 ```sh
 pnpm install --frozen-lockfile
@@ -20,6 +20,8 @@ The browser must support WebGPU. Safari and Chrome on Apple Silicon are the
 primary targets; there is no WebGL fallback.
 
 ```sh
+pnpm format:check
+pnpm lint
 pnpm typecheck
 pnpm test:physics
 pnpm build
@@ -57,3 +59,7 @@ assets, not the development dependency directory.
 
 Read [model assumptions](docs/model.md) and [verification instructions](docs/verification.md)
 for scientific limitations and reproducible checks.
+
+Formatting uses Prettier; `pnpm format` applies it. ESLint checks unused symbols,
+explicit `any`, control-flow mistakes and strict equality without imposing a large
+framework-specific rule set. These tools are development dependencies only.

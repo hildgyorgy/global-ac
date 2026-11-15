@@ -21,10 +21,11 @@ export function defaultCameraFrame(aspect: number) {
   // Include the inlaid title and controls in portrait layouts.
   const fit = Math.max(1, 1.45 / Math.max(0.35, aspect));
   // Wide views already nearly fill the top; portrait views have more headroom.
-  const magnification = 1.035 + .020 * Math.max(0, Math.min(1, (1.7 - aspect) / .7));
+  const magnification = 1.035 + 0.02 * Math.max(0, Math.min(1, (1.7 - aspect) / 0.7));
   return frameAroundDesk(
-    new Vector3(.15, CONFIG.camera.height * fit, CONFIG.camera.distance * fit),
-    new Vector3(0, CONFIG.camera.targetHeight, 0), magnification,
+    new Vector3(0.15, CONFIG.camera.height * fit, CONFIG.camera.distance * fit),
+    new Vector3(0, CONFIG.camera.targetHeight, 0),
+    magnification,
   );
 }
 

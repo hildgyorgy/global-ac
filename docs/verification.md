@@ -1,9 +1,11 @@
 # Verification
 
-Use Node.js 22+ and pnpm 10, then run:
+Use Node.js 22.13+ and pnpm 10, then run:
 
 ```sh
 pnpm install --frozen-lockfile
+pnpm format:check
+pnpm lint
 pnpm typecheck
 pnpm test:physics
 pnpm build
@@ -26,7 +28,7 @@ are derived from the fixture loops and configured marker budget.
 Only this diagnostic reads small GPU result buffers back to the CPU. Production
 simulation does not. The fixture is a development page and is not shipped in
 the Vite production entry. It must be run manually; the Pages workflow runs
-the Node tests and build, not a GPU-enabled browser.
+the format/lint checks, Node tests and build, not a GPU-enabled browser.
 
 ## Visual and interaction checks
 
@@ -46,3 +48,10 @@ Use the production preview and inspect the browser's WebGPU console:
 Startup failures should display a readable alert instead of leaving a black
 canvas. Unsupported WebGPU and failed renderer/compute initialization have
 separate messages; diagnostic details are logged to the console.
+
+For a real startup-path fault-injection check, open `/tests/startup-error.html`
+and `/tests/startup-error.html?stage=compute` on the development server. These
+development-only fixtures temporarily reject renderer or particle initialization
+and verify that the real error handler replaces the canvas with an alert.
+The simulated failure is expected in the console; the page must report PASS
+without an unhandled rejection.

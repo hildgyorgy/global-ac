@@ -24,7 +24,9 @@ export class Earth extends THREE.Group {
       roughness: 0.82,
       metalness: 0,
     });
-    this.surfaceMaterial.colorNode = texture(colorMap).mul(color(0xd8e0dc)).mul(this.presentationBrightness);
+    this.surfaceMaterial.colorNode = texture(colorMap)
+      .mul(color(0xd8e0dc))
+      .mul(this.presentationBrightness);
 
     const surface = new THREE.Mesh(this.surfaceGeometry, this.surfaceMaterial);
     surface.rotation.y = CONFIG.earth.rotationRadians;
@@ -33,10 +35,7 @@ export class Earth extends THREE.Group {
     surface.receiveShadow = true;
     this.add(surface);
 
-    const rim = float(1)
-      .sub(normalWorld.dot(positionWorldDirection).abs())
-      .clamp(0, 1)
-      .pow(3.2);
+    const rim = float(1).sub(normalWorld.dot(positionWorldDirection).abs()).clamp(0, 1).pow(3.2);
 
     this.glowGeometry = new THREE.SphereGeometry(CONFIG.earth.radius * 1.055, 80, 56);
     this.glowMaterial = new THREE.MeshBasicNodeMaterial({
@@ -56,7 +55,7 @@ export class Earth extends THREE.Group {
   setSectionProgress(progress: number): void {
     // Make the opaque sphere dark before swapping it for the cut face. Keep
     // depth testing intact instead of making continents transparent to tracers.
-    const t = THREE.MathUtils.clamp(progress / .45, 0, 1);
+    const t = THREE.MathUtils.clamp(progress / 0.45, 0, 1);
     this.presentationBrightness.value = 1 - THREE.MathUtils.smoothstep(t, 0, 1);
   }
 

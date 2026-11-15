@@ -2,9 +2,12 @@
 export class SectionSwitch {
   readonly element = document.createElement('button');
 
-  constructor(private readonly onChange: (enabled: boolean) => void, options = {
-    label: 'Projection',
-  }) {
+  constructor(
+    private readonly onChange: (enabled: boolean) => void,
+    options = {
+      label: 'Projection',
+    },
+  ) {
     this.element.className = 'section-switch';
     this.element.type = 'button';
     this.element.setAttribute('aria-pressed', 'false');
