@@ -8,6 +8,7 @@ import { EarthSection } from '../earth/EarthSection';
 import { OrientationGuides } from '../earth/OrientationGuides';
 import { SectionSwitch } from '../ui/SectionSwitch';
 import { createStarField } from '../scene/createStarField';
+import { CellSelection } from '../camera/CellSelection';
 
 export class App {
   private readonly scene = new THREE.Scene();
@@ -25,6 +26,8 @@ export class App {
   private readonly coriolisSwitch: SectionSwitch;
   private readonly instrumentControls = document.createElement('div');
   private readonly resetButton = document.createElement('button');
+  private readonly cellSelection: CellSelection;
+  private selectedCell = -1;
   private sectionEnabled = false;
   private sectionProgress = 0;
   private transitionStarted = 0;
@@ -64,6 +67,14 @@ export class App {
     this.instrumentControls.append(this.sectionSwitch.element, this.coriolisSwitch.element, this.resetButton);
     container.append(this.instrumentControls);
     this.configureScene();
+    this.cellSelection = new CellSelection(
+      this.renderer.domElement, this.cameraRig.camera, this.globe,
+      () => this.sectionEnabled, () => this.running && !this.transitioning,
+      (cell) => {
+        this.selectedCell = cell === this.selectedCell ? -1 : cell;
+        this.particles.setSelectedCell(this.selectedCell);
+      },
+    );
     window.addEventListener('resize', this.handleResize);
   }
 
@@ -85,6 +96,7 @@ export class App {
     this.renderer.setAnimationLoop(null);
     window.removeEventListener('resize', this.handleResize);
     this.cameraRig.controls.dispose();
+    this.cellSelection.dispose();
     this.sectionSwitch.dispose();
     this.coriolisSwitch.dispose();
     this.resetButton.removeEventListener('click', this.resetView);
@@ -92,7 +104,7 @@ export class App {
     this.earth.dispose();
     this.particles.dispose();
     this.scene.traverse((object) => {
-      if (object === this.particles) return;
+      if (object === this.particles || object === this.particles.trails) return;
       const disposable = object as unknown as {
         geometry?: { dispose(): void };
         material?: { dispose(): void };
@@ -107,9 +119,11 @@ export class App {
   private configureScene(): void {
     this.scene.add(createStarField());
 
-    const ambient = new THREE.AmbientLight(0x78909a, 0.13);
+    // Faint library-room fill: preserve readable land on the night side.
+    const ambient = new THREE.AmbientLight(0xa6a19a, 0.20);
     const sun = new THREE.DirectionalLight(0xfff0d4, 3.4);
-    sun.position.set(-3.5, 2.1, 4.5);
+    // Side lighting exposes a clear terminator with a fixed world-space sun.
+    sun.position.set(-6, 1.8, 1.6);
     this.scene.add(ambient, sun);
 
     this.globe.rotation.z = (CONFIG.earth.axialTiltDegrees * Math.PI) / 180;
@@ -125,6 +139,7 @@ export class App {
     this.previousFrameTime = now;
     this.spinAngle = (this.spinAngle + CONFIG.earth.spinRadiansPerSecond * delta) % (Math.PI * 2);
     this.rotatingGlobe.rotation.y = this.spinAngle;
+    this.orientationGuides.setSpinAngle(this.spinAngle);
     this.particles.setSpinAngle(this.spinAngle);
     this.particles.compute(this.renderer);
     this.updateSectionTransition();
@@ -151,6 +166,8 @@ export class App {
   };
 
   private resetView = (): void => {
+    this.selectedCell = -1;
+    this.particles.setSelectedCell(-1);
     // Restore the initial globe view; preserve the atmospheric/Coriolis state.
     this.savedCameraPosition.set(0.1, 0.15, CONFIG.camera.distance);
     this.sectionSwitch.setEnabled(false);

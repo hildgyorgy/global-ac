@@ -1,4 +1,4 @@
-const cellParticleCounts = { hadley: 50_000, ferrel: 33_334, polar: 13_332 } as const;
+const cellParticleCounts = { hadley: 25_000, ferrel: 16_667, polar: 6_666 } as const;
 
 export const CONFIG = {
   earth: {
@@ -20,7 +20,7 @@ export const CONFIG = {
     fieldOfView: 40,
     near: 0.05,
     far: 100,
-    distance: 3.35,
+    distance: 3.35 / 0.95,
     minDistance: 2.35,
     maxDistance: 5.8,
   },

@@ -21,7 +21,9 @@ import { CONFIG } from '../config';
 import { sampleHadleyField } from './HadleyFieldNode';
 import { HADLEY_MODEL } from './HadleyModel';
 import { CORIOLIS_MODEL } from './CoriolisModel';
-import { zonalCoriolisAccelerationNode } from './CoriolisNode';
+import { coriolisVisualScaleNode, zonalCoriolisAccelerationNode } from './CoriolisNode';
+import { GpuParticleTrails } from './GpuParticleTrails';
+import { cellFocusNode } from './CellSelectionNode';
 
 // Keep only a numerical epsilon at latitude separatrices, not visible gaps.
 const LATITUDE_EPSILON = 0.0001;
@@ -29,10 +31,12 @@ const MIN_ALTITUDE = 0.04;
 const MAX_ALTITUDE = 0.96;
 
 export class GpuParticleSystem extends THREE.Sprite {
+  readonly trails: GpuParticleTrails;
   private readonly sliceHalfWidth;
   private readonly sectionBrightness;
   private readonly coriolisStrength;
   private readonly spinAngle;
+  private readonly selectedCell;
   private readonly computeInit: ComputeNode;
   private readonly computeUpdate: ComputeNode;
 
@@ -42,6 +46,7 @@ export class GpuParticleSystem extends THREE.Sprite {
     const sectionBrightness = uniform(1);
     const coriolisStrength = uniform(0);
     const spinAngle = uniform(0);
+    const selectedCell = uniform(-1);
     const zonalSpeeds = instancedArray(count, 'float').setName('particleZonalSpeeds');
     const positions = instancedArray(count, 'vec4').setName('particlePositions');
     const velocities = instancedArray(count, 'vec4').setName('particleVelocities');
@@ -137,9 +142,10 @@ export class GpuParticleSystem extends THREE.Sprite {
       // Our Cartesian longitude increases westward about the +Y polar axis.
       // Convert eastward linear speed to negative longitude rate. Regularize
       // near the poles where longitude itself becomes singular.
+      const longitudeLimit = coriolisVisualScaleNode(state.x).mul(CORIOLIS_MODEL.maxLongitudeRate);
       const longitudeRate = zonalSpeed.negate()
         .div(radius.mul(state.x.cos().max(CORIOLIS_MODEL.minimumCosLatitude)))
-        .clamp(-CORIOLIS_MODEL.maxLongitudeRate, CORIOLIS_MODEL.maxLongitudeRate);
+        .clamp(longitudeLimit.negate(), longitudeLimit);
 
       state.x.addAssign(field.x.mul(dt));
       state.y.addAssign(longitudeRate.mul(dt));
@@ -222,9 +228,10 @@ export class GpuParticleSystem extends THREE.Sprite {
     );
 
     const material = new THREE.SpriteNodeMaterial();
+    const focus = cellFocusNode(float(sphericalState.toAttribute().x), selectedCell);
     material.positionNode = particlePosition.xyz;
     material.scaleNode = float(CONFIG.atmosphere.particleSize);
-    material.colorNode = particleColor.mul(0.9).mul(sectionBrightness);
+    material.colorNode = particleColor.mul(0.9).mul(sectionBrightness).mul(focus);
     material.opacityNode = (shapeCircle() as Node<'float'>)
       .mul(shimmer)
       .mul(lifeFade)
@@ -237,10 +244,13 @@ export class GpuParticleSystem extends THREE.Sprite {
     material.alphaToCoverage = true;
 
     super(material);
+    this.trails = new GpuParticleTrails(count, positions, velocities, sliceHalfWidth, spinAngle, sectionBrightness, selectedCell);
+    this.add(this.trails);
     this.sliceHalfWidth = sliceHalfWidth;
     this.sectionBrightness = sectionBrightness;
     this.coriolisStrength = coriolisStrength;
     this.spinAngle = spinAngle;
+    this.selectedCell = selectedCell;
     this.count = count;
     this.frustumCulled = false;
     this.renderOrder = 3;
@@ -251,10 +261,12 @@ export class GpuParticleSystem extends THREE.Sprite {
   async initialize(renderer: THREE.WebGPURenderer): Promise<void> {
     await renderer.computeAsync(this.computeInit);
     await renderer.computeAsync(this.computeUpdate);
+    await this.trails.initialize(renderer);
   }
 
   compute(renderer: THREE.WebGPURenderer): void {
     renderer.compute(this.computeUpdate);
+    this.trails.compute(renderer);
   }
 
   setSectionProgress(progress: number): void {
@@ -270,8 +282,13 @@ export class GpuParticleSystem extends THREE.Sprite {
     this.spinAngle.value = angle;
   }
 
+  setSelectedCell(cell: number): void {
+    this.selectedCell.value = cell;
+  }
+
   dispose(): void {
     this.geometry.dispose();
     this.material.dispose();
+    this.trails.dispose();
   }
 }
