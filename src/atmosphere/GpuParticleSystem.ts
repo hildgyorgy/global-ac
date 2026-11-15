@@ -4,7 +4,6 @@ import {
   Fn,
   If,
   PI2,
-  color,
   deltaTime,
   float,
   hash,
@@ -18,6 +17,8 @@ import {
   vec3,
   vec4,
 } from 'three/tsl';
+import { particleRadiusNode, radialVelocityNode } from './GeometryNode';
+import { temperatureColorNode, particleLifeFadeNode, jetTracerFadeNode } from './ParticleAppearanceNode';
 import { CONFIG } from '../config';
 import { sampleHadleyField } from './HadleyFieldNode';
 import { HADLEY_MODEL } from './HadleyModel';
@@ -80,21 +81,11 @@ export class GpuParticleSystem extends THREE.Sprite {
         .mul(1 - 2 * LATITUDE_EPSILON).add(LATITUDE_EPSILON);
     });
 
-    // Smooth latitude-dependent shell; shared by rendering and wind metrics.
-    const particleRadius = Fn<
-      [Node<'float'>, Node<'float'>], Node<'float'>
-    >(([latitude, altitude]) => {
-      const thickness = latitude.cos().pow(2)
-        .mul(CONFIG.atmosphere.equatorialShellThickness - CONFIG.atmosphere.polarShellThickness)
-        .add(CONFIG.atmosphere.polarShellThickness);
-      return float(CONFIG.earth.radius + 0.018).add(altitude.mul(thickness));
-    });
-
     const toCartesian = Fn<
       [Node<'float'>, Node<'float'>, Node<'float'>],
       Node<'vec3'>
     >(([latitude, longitude, altitude]) => {
-      const radius = particleRadius(latitude, altitude);
+      const radius = particleRadiusNode(latitude, altitude);
       const cosLatitude = latitude.cos();
 
       return vec3(
@@ -109,39 +100,35 @@ export class GpuParticleSystem extends THREE.Sprite {
       hash(seed.add(71)).mul(PI2), hash(seed.add(89)).sqrt(),
     ));
 
-    const computeInit = Fn(() => {
-      const index = instanceIndex.toFloat();
-      const position = positions.element(instanceIndex);
-      const velocity = velocities.element(instanceIndex);
-      const state = sphericalState.element(instanceIndex);
+    // Phase 0 initializes; phase 1 respawns. Preserve each phase's hash salts
+    // and life distribution while sharing all state writes and jet handling.
+    const seedParticle = (seed: Node<'float'>, phase: Node<'float'>): void => {
       const hemisphere = float(1).toVar();
-
-      If(hash(index.add(1)).lessThan(0.5), () => {
-        hemisphere.assign(-1);
-      });
-
-      const cellPosition = seedCellPosition(hash(index.add(7)));
-      const altitude = hash(index.add(17))
-        .pow(1.3)
-        .mul(MAX_ALTITUDE - MIN_ALTITUDE)
-        .add(MIN_ALTITUDE).toVar();
+      If(hash(seed.add(mix(1, 3, phase))).lessThan(.5), () => { hemisphere.assign(-1); });
+      const cellPosition = seedCellPosition(hash(seed.add(mix(7, 11, phase))));
+      const altitude = hash(seed.add(mix(17, 23, phase))).pow(1.3)
+        .mul(MAX_ALTITUDE - MIN_ALTITUDE).add(MIN_ALTITUDE).toVar();
       const cellIndex = allocatedCellIndex().toVar();
       const latitude = hemisphere.mul(HADLEY_MODEL.cellEdgeRadians).mul(cellPosition.add(cellIndex)).toVar();
       If(instanceIndex.greaterThanEqual(baseCount), () => {
-        const seed = seedJet(index);
-        latitude.assign(seed.x); altitude.assign(seed.y);
+        const jet = seedJet(seed);
+        latitude.assign(jet.x); altitude.assign(jet.y);
         cellIndex.assign(latitude.abs().div(HADLEY_MODEL.cellEdgeRadians).floor().min(2));
       });
-      const longitude = hash(index.add(29)).mul(PI2);
-      const life = hash(index.add(43)).mul(0.5).add(0.5);
-      const field = sampleHadleyField(latitude, altitude);
-
-      state.assign(vec4(latitude, longitude, altitude, cellIndex));
+      const longitude = hash(seed.add(mix(29, 37, phase))).mul(PI2);
+      const life = hash(seed.add(mix(43, 59, phase))).mul(mix(.5, .35, phase)).add(mix(.5, .65, phase));
+      const position = positions.element(instanceIndex);
+      sphericalState.element(instanceIndex).assign(vec4(latitude, longitude, altitude, cellIndex));
       position.assign(vec4(toCartesian(latitude, longitude, altitude), life));
+      // A life increase clears trails, including early jet-marker respawns.
       If(instanceIndex.greaterThanEqual(baseCount), () => { position.w.assign(1); });
       jetLifecycle.element(instanceIndex).assign(vec2(0, 1));
-      velocity.assign(field);
+      velocities.element(instanceIndex).assign(sampleHadleyField(latitude, altitude));
       zonalSpeeds.element(instanceIndex).assign(0);
+    };
+
+    const computeInit = Fn(() => {
+      seedParticle(instanceIndex.toFloat(), float(0));
     })().compute(count).setName('Initialize atmospheric particles');
 
     const computeUpdate = Fn(() => {
@@ -151,7 +138,7 @@ export class GpuParticleSystem extends THREE.Sprite {
       const dt = deltaTime.min(0.05).mul(CONFIG.atmosphere.flowSpeed);
       const field = sampleHadleyField(state.x, state.z);
       const zonalSpeed = zonalSpeeds.element(instanceIndex);
-      const radius = particleRadius(state.x, state.z);
+      const radius = particleRadiusNode(state.x, state.z);
       const northwardSpeed = field.x.mul(radius);
       const acceleration = zonalCoriolisAccelerationNode(state.x, northwardSpeed)
         .mul(coriolisStrength);
@@ -171,11 +158,7 @@ export class GpuParticleSystem extends THREE.Sprite {
 
       // Actual background velocity after the cap. dr/dt includes the
       // latitude-dependent shell thickness, not just normalized altitude.
-      const thicknessDifference = CONFIG.atmosphere.equatorialShellThickness - CONFIG.atmosphere.polarShellThickness;
-      const thickness = state.x.cos().pow(2).mul(thicknessDifference)
-        .add(CONFIG.atmosphere.polarShellThickness);
-      const radialSpeed = field.z.mul(thickness).sub(state.z.mul(2 * thicknessDifference)
-        .mul(state.x.cos()).mul(state.x.sin()).mul(field.x));
+      const radialSpeed = radialVelocityNode(state.x, state.z, field.x, field.z);
       const eastward = jetEastwardSpeedNode(state.x, state.z,
         backgroundLongitudeRate.negate().mul(zonalMetric), northwardSpeed, radialSpeed, jetStrength);
       const longitudeRate = eastward.negate().div(zonalMetric);
@@ -214,69 +197,23 @@ export class GpuParticleSystem extends THREE.Sprite {
       // repeated particles from returning to a visible fixed lattice.
       If(position.w.lessThanEqual(0).or(instanceIndex.greaterThanEqual(baseCount)
         .and(lifecycle.y.lessThanEqual(0))), () => {
-        const respawnSeed = instanceIndex.toFloat().add(time.mul(19.17));
-        const respawnHemisphere = float(1).toVar();
-
-        If(hash(respawnSeed.add(3)).lessThan(0.5), () => {
-          respawnHemisphere.assign(-1);
-        });
-
-        const cellPosition = seedCellPosition(hash(respawnSeed.add(11)));
-        const altitude = hash(respawnSeed.add(23))
-          .pow(1.3)
-          .mul(MAX_ALTITUDE - MIN_ALTITUDE)
-          .add(MIN_ALTITUDE).toVar();
-        const cellIndex = allocatedCellIndex().toVar();
-        const latitude = respawnHemisphere
-          .mul(HADLEY_MODEL.cellEdgeRadians)
-          .mul(cellPosition.add(cellIndex)).toVar();
-        If(instanceIndex.greaterThanEqual(baseCount), () => {
-          const seed = seedJet(respawnSeed);
-          latitude.assign(seed.x); altitude.assign(seed.y);
-          cellIndex.assign(latitude.abs().div(HADLEY_MODEL.cellEdgeRadians).floor().min(2));
-        });
-        const longitude = hash(respawnSeed.add(37)).mul(PI2);
-        const respawnField = sampleHadleyField(latitude, altitude);
-
-        state.assign(vec4(latitude, longitude, altitude, cellIndex));
-        position.assign(
-          vec4(
-            toCartesian(latitude, longitude, altitude),
-            hash(respawnSeed.add(59)).mul(0.35).add(0.65),
-          ),
-        );
-        // A life increase clears the existing GPU trail on reseed. Fix extra
-        // marker life at 1 so even an early fade-out always triggers that clear.
-        If(instanceIndex.greaterThanEqual(baseCount), () => { position.w.assign(1); });
-        lifecycle.assign(vec2(0, 1));
-        velocity.assign(respawnField);
-        zonalSpeed.assign(0);
+        seedParticle(instanceIndex.toFloat().add(time.mul(19.17)), float(1));
       });
     })().compute(count).setName('Advect atmospheric particles');
 
     const particlePosition = positions.toAttribute();
     const particleVelocity = velocities.toAttribute();
     const temperature = float(particleVelocity.w);
-    const coolToViolet = mix(
-      color(0x124bff),
-      color(0x953de8),
-      temperature.mul(2).clamp(),
-    ) as Node<'vec3'>;
-    const particleColor = mix(
-      coolToViolet,
-      color(0xff102b),
-      temperature.sub(0.5).mul(2).clamp(),
-    ) as Node<'vec3'>;
+    const particleColor = temperatureColorNode(temperature);
     const shimmer = time
       .mul(1.35)
       .add(hash(instanceIndex).mul(PI2))
       .sin()
       .mul(0.08)
       .add(0.92);
-    const lifeFade = float(particlePosition.w).clamp(0, 0.24).div(0.24);
+    const lifeFade = particleLifeFadeNode(float(particlePosition.w));
     const cycle = jetLifecycle.toAttribute();
-    const jetDisplayFade = mix(float(1), jetStrength.mul(cycle.x.smoothstep(0, JET_STREAMS_MODEL.tracerFadeSeconds))
-      .mul(cycle.y), instanceIndex.greaterThanEqual(baseCount).toFloat());
+    const jetDisplayFade = jetTracerFadeNode(instanceIndex.toFloat(), float(baseCount), cycle, jetStrength);
     const projection = meridionalProjectionNode(particlePosition.xyz, spinAngle, projectionProgress);
 
     const material = new THREE.SpriteNodeMaterial();
@@ -297,8 +234,8 @@ export class GpuParticleSystem extends THREE.Sprite {
     material.alphaToCoverage = true;
 
     super(material);
-    this.trails = new GpuParticleTrails(count, positions, velocities, projectionProgress, spinAngle,
-      sectionBrightness, selectedCell, baseCount, jetLifecycle, jetStrength);
+    this.trails = new GpuParticleTrails({ particleCount: count, positions, velocities, projectionProgress, spinAngle,
+      sectionBrightness, selectedCell, baseParticleCount: baseCount, jetLifecycle, jetStrength });
     this.add(this.trails);
     this.projectionProgress = projectionProgress;
     this.sectionBrightness = sectionBrightness;

@@ -1,12 +1,25 @@
 import * as THREE from 'three/webgpu';
 import type { ComputeNode, Node, StorageBufferNode } from 'three/webgpu';
 import {
-  Fn, If, Loop, color, float, instanceIndex, instancedArray,
-  mix, uniform, varying, vec4, vertexIndex,
+  Fn, If, Loop, float, instanceIndex, instancedArray,
+  uniform, varying, vec4, vertexIndex,
 } from 'three/tsl';
 import { cellFocusNode } from './CellSelectionNode';
 import { meridionalProjectionNode } from './MeridionalProjectionNode';
-import { JET_STREAMS_MODEL } from './JetStreamsModel';
+import { temperatureColorNode, particleLifeFadeNode, jetTracerFadeNode } from './ParticleAppearanceNode';
+
+interface ParticleTrailsOptions {
+  particleCount: number;
+  positions: StorageBufferNode<'vec4'>;
+  velocities: StorageBufferNode<'vec4'>;
+  projectionProgress: Node<'float'>;
+  spinAngle: Node<'float'>;
+  sectionBrightness: Node<'float'>;
+  selectedCell: Node<'float'>;
+  baseParticleCount: number;
+  jetLifecycle: StorageBufferNode<'vec2'>;
+  jetStrength: Node<'float'>;
+}
 
 const STRIDE = 24;
 const SAMPLES = 24;
@@ -22,18 +35,8 @@ export class GpuParticleTrails extends THREE.LineSegments<THREE.BufferGeometry, 
   private previousTime = 0;
   private sampleAccumulator = 0;
 
-  constructor(
-    particleCount: number,
-    positions: StorageBufferNode<'vec4'>,
-    velocities: StorageBufferNode<'vec4'>,
-    projectionProgress: Node<'float'>,
-    spinAngle: Node<'float'>,
-    sectionBrightness: Node<'float'>,
-    selectedCell: Node<'float'>,
-    baseParticleCount: number,
-    jetLifecycle: StorageBufferNode<'vec2'>,
-    jetStrength: Node<'float'>,
-  ) {
+  constructor({ particleCount, positions, velocities, projectionProgress, spinAngle,
+    sectionBrightness, selectedCell, baseParticleCount, jetLifecycle, jetStrength }: ParticleTrailsOptions) {
     const trailCount = Math.ceil(particleCount / STRIDE);
     const history = instancedArray(trailCount * SAMPLES, 'vec4').setName('trailHistory');
     const previousLife = instancedArray(trailCount, 'float').setName('trailPreviousLife');
@@ -80,14 +83,11 @@ export class GpuParticleTrails extends THREE.LineSegments<THREE.BufferGeometry, 
       return result;
     })();
     const temperature = varying(trailPoint.w);
-    const coldToViolet = mix(color(0x124bff), color(0x953de8), temperature.mul(2).clamp()) as Node<'vec3'>;
-    const temperatureColor = mix(coldToViolet, color(0xff102b), temperature.sub(0.5).mul(2).clamp()) as Node<'vec3'>;
+    const temperatureColor = temperatureColorNode(temperature);
     const fade = varying(float(1).sub(age.toFloat().add(1).div(SAMPLES)).max(0).pow(1.5));
-    const lifeFade = varying(positions.element(particle).w.clamp(0, 0.24).div(0.24));
+    const lifeFade = varying(particleLifeFadeNode(positions.element(particle).w));
     const cycle = jetLifecycle.element(particle);
-    const jetFade = varying(mix(float(1), jetStrength
-      .mul(cycle.x.smoothstep(0, JET_STREAMS_MODEL.tracerFadeSeconds)).mul(cycle.y),
-    particle.greaterThanEqual(baseParticleCount).toFloat()));
+    const jetFade = varying(jetTracerFadeNode(particle.toFloat(), float(baseParticleCount), cycle, jetStrength));
     const slicePosition = varying(trailPoint.xyz);
     const latitude = slicePosition.y.div(slicePosition.length().max(0.001)).clamp(-1, 1).asin();
     const focus = cellFocusNode(latitude, selectedCell);

@@ -1,4 +1,5 @@
 import * as THREE from 'three/webgpu';
+import { particleRadius } from '../atmosphere/geometry';
 import { CONFIG } from '../config';
 import { JET_STREAMS_MODEL } from '../atmosphere/JetStreamsModel';
 
@@ -42,10 +43,7 @@ export class ProjectionAnnotations extends THREE.Group {
     for (const hemisphere of [1, -1]) {
       for (const [name, degrees] of [['HADLEY CELL', 15], ['FERREL CELL', 45], ['POLAR CELL', 75]] as const) {
         const latitude = THREE.MathUtils.degToRad(degrees * hemisphere);
-        const thickness = CONFIG.atmosphere.polarShellThickness
-          + (CONFIG.atmosphere.equatorialShellThickness - CONFIG.atmosphere.polarShellThickness)
-          * Math.cos(latitude) ** 2;
-        const radius = CONFIG.earth.radius + .018 + thickness * .5;
+        const radius = particleRadius(latitude, .5);
         const dx = -Math.cos(latitude), dy = Math.sin(latitude);
         // Radial leaders meet the spherical surface normally. Keep each
         // entire horizontal label beyond the atmospheric silhouette.
@@ -62,10 +60,7 @@ export class ProjectionAnnotations extends THREE.Group {
     for (const hemisphere of [1, -1]) {
       JET_STREAMS_MODEL.bands.forEach((band, index) => {
         const latitude = band.latitude * hemisphere;
-        const thickness = CONFIG.atmosphere.polarShellThickness
-          + (CONFIG.atmosphere.equatorialShellThickness - CONFIG.atmosphere.polarShellThickness)
-          * Math.cos(latitude) ** 2;
-        const radius = CONFIG.earth.radius + .018 + thickness * band.coreAltitude;
+        const radius = particleRadius(latitude, band.coreAltitude);
         const direction = new THREE.Vector3(-Math.cos(latitude), Math.sin(latitude), 0);
         const core = direction.clone().multiplyScalar(radius).setZ(-.078);
         const anchor = direction.clone().multiplyScalar(CONFIG.earth.radius + .55).setZ(-.078);

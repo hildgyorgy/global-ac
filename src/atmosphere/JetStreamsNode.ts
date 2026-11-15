@@ -1,7 +1,7 @@
 import type { Node } from 'three/webgpu';
 import { Fn, float, mix, vec2 } from 'three/tsl';
 import { JET_STREAMS_MODEL } from './JetStreamsModel';
-import { CONFIG } from '../config';
+import { shellThicknessNode, particleRadiusNode } from './GeometryNode';
 
 /** TSL adapter for the renderer-independent prescribed jet model. */
 export const jetStreamWeightNode = Fn<[Node<'float'>, Node<'float'>], Node<'float'>>(([latitude, altitude]) => {
@@ -37,10 +37,8 @@ export const jetTracerSeedNode = Fn<[
   const hemisphere = float(1).sub(slot.mod(2).mul(2));
   const latitude = mix(subtropical.latitude, polar.latitude, polarWeight).mul(hemisphere);
   const altitude = mix(subtropical.coreAltitude, polar.coreAltitude, polarWeight);
-  const thickness = latitude.cos().pow(2)
-    .mul(CONFIG.atmosphere.equatorialShellThickness - CONFIG.atmosphere.polarShellThickness)
-    .add(CONFIG.atmosphere.polarShellThickness);
-  const radius = altitude.mul(thickness).add(CONFIG.earth.radius + .018);
+  const thickness = shellThicknessNode(latitude);
+  const radius = particleRadiusNode(latitude, altitude);
   const offset = diskRadius.mul(JET_STREAMS_MODEL.tracerCrossSectionRadius);
   return vec2(latitude.add(angle.cos().mul(offset).div(radius)),
     altitude.add(angle.sin().mul(offset).div(thickness)));

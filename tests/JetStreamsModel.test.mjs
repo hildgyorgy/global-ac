@@ -2,13 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { JET_STREAMS_MODEL as model, jetStreamWeight, sampleJetEastwardSpeed } from '../src/atmosphere/JetStreamsModel.ts';
 import { sampleHadleyModel } from '../src/atmosphere/HadleyModel.ts';
+import { particleRadius } from '../src/atmosphere/geometry.ts';
 import { CONFIG } from '../src/config.ts';
 
 test('subtropical cores sit above polar-front cores in the tapered shell', () => {
-  const heights = model.bands.map(band => band.coreAltitude
-    * (CONFIG.atmosphere.polarShellThickness
-      + (CONFIG.atmosphere.equatorialShellThickness - CONFIG.atmosphere.polarShellThickness)
-      * Math.cos(band.latitude) ** 2));
+  const heights = model.bands.map(band => particleRadius(band.latitude, band.coreAltitude) - CONFIG.earth.radius);
   assert.ok(heights[0] > heights[1]);
   assert.equal(model.bands[0].latitude, Math.PI / 6);
   assert.equal(model.bands[1].latitude, Math.PI / 3);

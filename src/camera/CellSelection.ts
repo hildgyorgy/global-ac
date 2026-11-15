@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu';
 import { CONFIG } from '../config';
+import { particleRadius } from '../atmosphere/geometry';
 import { HADLEY_MODEL } from '../atmosphere/HadleyModel';
 
 export function cellAtLatitude(latitude: number): number {
@@ -94,9 +95,7 @@ export class CellSelection {
     }
     const radius = this.point.length();
     const latitude = Math.asin(THREE.MathUtils.clamp(this.point.y / Math.max(radius, 1e-6), -1, 1));
-    const thickness = CONFIG.atmosphere.polarShellThickness
-      + (CONFIG.atmosphere.equatorialShellThickness - CONFIG.atmosphere.polarShellThickness) * Math.cos(latitude) ** 2;
-    if (radius > CONFIG.earth.radius + 0.018 + thickness + 0.015) return -1;
+    if (radius > particleRadius(latitude, 1) + 0.015) return -1;
     return cellAtLatitude(latitude);
   }
 

@@ -3,7 +3,8 @@ import WebGPU from 'three/addons/capabilities/WebGPU.js';
 import { Fn, instanceIndex, instancedArray, mix, hash, PI2 } from 'three/tsl';
 import { jetEastwardSpeedNode, jetTracerSeedNode } from '../src/atmosphere/JetStreamsNode';
 import { sampleJetEastwardSpeed, JET_STREAMS_MODEL as model } from '../src/atmosphere/JetStreamsModel';
-import { CONFIG } from '../src/config';
+import { shellThickness, particleRadius, radialVelocity } from '../src/atmosphere/geometry';
+import { shellThicknessNode, particleRadiusNode, radialVelocityNode } from '../src/atmosphere/GeometryNode';
 import { CORIOLIS_MODEL, zonalCoriolisAcceleration, coriolisVisualScale } from '../src/atmosphere/CoriolisModel';
 import { sampleHadleyModel, normalizeTemperatureKelvin } from '../src/atmosphere/HadleyModel';
 import { sampleHadleyField } from '../src/atmosphere/HadleyFieldNode';
@@ -30,11 +31,15 @@ async function check(): Promise<void> {
   const inputsA = instancedArray(a, 'vec4'), inputsB = instancedArray(b, 'vec4');
   const output = instancedArray(cases.length, 'float');
   const dragOutput = instancedArray(cases.length, 'float');
+  const geometryOutput = instancedArray(cases.length, 'vec4');
   const fieldOutput = instancedArray(cases.length, 'vec4');
   const coriolisOutput = instancedArray(cases.length, 'vec2');
   const compute = Fn(() => {
     const v = inputsA.element(instanceIndex), w = inputsB.element(instanceIndex);
     output.element(instanceIndex).assign(jetEastwardSpeedNode(v.x, v.y, v.z, v.w, w.x, w.y));
+    geometryOutput.element(instanceIndex).x.assign(shellThicknessNode(v.x));
+    geometryOutput.element(instanceIndex).y.assign(particleRadiusNode(v.x, v.y));
+    geometryOutput.element(instanceIndex).z.assign(radialVelocityNode(v.x, v.y, v.w, w.x));
     fieldOutput.element(instanceIndex).assign(sampleHadleyField(v.x, v.y));
     coriolisOutput.element(instanceIndex).x.assign(zonalCoriolisAccelerationNode(v.x, v.w));
     coriolisOutput.element(instanceIndex).y.assign(coriolisVisualScaleNode(v.x));
@@ -51,6 +56,7 @@ async function check(): Promise<void> {
     await renderer.computeAsync(compute);
     const actual = new Float32Array(await renderer.getArrayBufferAsync(output.value));
     const drag = new Float32Array(await renderer.getArrayBufferAsync(dragOutput.value));
+    const geometry = new Float32Array(await renderer.getArrayBufferAsync(geometryOutput.value));
     const fields = new Float32Array(await renderer.getArrayBufferAsync(fieldOutput.value));
     const coriolis = new Float32Array(await renderer.getArrayBufferAsync(coriolisOutput.value));
     let maxError = 0;
@@ -58,6 +64,12 @@ async function check(): Promise<void> {
       const j = i * 4;
       const expected = sampleJetEastwardSpeed(a[j], a[j + 1],
         { eastward: a[j + 2], northward: a[j + 3], radial: b[j] }, b[j + 1]);
+      const expectedGeometry = [shellThickness(a[j]), particleRadius(a[j], a[j + 1]), radialVelocity(a[j], a[j + 1], a[j + 3], b[j])];
+      expectedGeometry.forEach((value, component) => {
+        if (!Number.isFinite(geometry[j + component]) || Math.abs(value - geometry[j + component]) > 1e-5) {
+          throw new Error(`Geometry GPU mismatch at case ${i}, component ${component}`);
+        }
+      });
       const reference = sampleHadleyModel(a[j], a[j + 1]);
       const expectedField = [reference.latitudeVelocity, reference.longitudeVelocity,
         reference.altitudeVelocity, normalizeTemperatureKelvin(reference.temperatureKelvin)];
@@ -89,10 +101,8 @@ async function check(): Promise<void> {
       const slot = i % 4, band = model.bands[slot < 2 ? 0 : 1];
       const latitude = seeded[i * 2], altitude = seeded[i * 2 + 1];
       const centreLatitude = band.latitude * (slot % 2 ? -1 : 1);
-      const thickness = CONFIG.atmosphere.polarShellThickness
-        + (CONFIG.atmosphere.equatorialShellThickness - CONFIG.atmosphere.polarShellThickness)
-        * Math.cos(centreLatitude) ** 2;
-      const radius = CONFIG.earth.radius + .018 + band.coreAltitude * thickness;
+      const thickness = shellThickness(centreLatitude);
+      const radius = particleRadius(centreLatitude, band.coreAltitude);
       const offset = Math.hypot((latitude - centreLatitude) * radius,
         (altitude - band.coreAltitude) * thickness);
       if (!Number.isFinite(offset) || offset > model.tracerCrossSectionRadius + 1e-6
