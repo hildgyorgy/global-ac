@@ -40,20 +40,9 @@ export class LibraryStudy extends THREE.Group {
     this.createScroll(3.1, -0.9);
     this.createRoom(walnut);
 
-    // The actual accessible HTML controls share this 3D pose with their bezel.
-    this.controlAnchor.position.set(0, DESK_Y + 0.235, 1.96);
-    this.controlAnchor.rotation.x = -1.03;
-    const bezel = new THREE.Mesh(new THREE.BoxGeometry(4.65, 0.66, 0.08), this.brass);
-    bezel.castShadow = true;
-    const face = new THREE.Mesh(new THREE.BoxGeometry(4.59, 0.60, 0.012),
-      new THREE.MeshStandardNodeMaterial({ color: 0x101410, roughness: 0.66, metalness: 0.2 }));
-    face.position.z = 0.047;
-    this.controlAnchor.add(bezel, face);
-    for (const x of [-2.24, 2.24]) for (const y of [-0.245, 0.245]) {
-      const screw = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), this.brass);
-      screw.position.set(x, y, 0.058);
-      this.controlAnchor.add(screw);
-    }
+    // Inlaid instruments lie flush along the near long edge of the desktop.
+    this.controlAnchor.position.set(0, DESK_Y + 0.008, 2.35);
+    this.controlAnchor.rotation.x = -Math.PI / 2;
     this.add(this.controlAnchor);
   }
 

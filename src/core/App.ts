@@ -73,7 +73,8 @@ export class App {
     this.resetButton.addEventListener('click', this.resetView);
     this.instrumentControls.append(this.sectionSwitch.element, this.coriolisSwitch.element, this.resetButton);
     this.configureScene();
-    this.deskControls = new DeskControls(container, this.instrumentControls, this.study.controlAnchor);
+    this.deskControls = new DeskControls(container, this.instrumentControls, this.study.controlAnchor,
+      this.renderer.domElement, this.cameraRig.camera);
     this.cellSelection = new CellSelection(
       this.renderer.domElement, this.cameraRig.camera, this.globe,
       () => this.sectionEnabled, () => this.running && !this.transitioning,
@@ -168,8 +169,8 @@ export class App {
     this.particles.compute(this.renderer);
     this.updateSectionTransition();
     this.cameraRig.controls.update();
+    this.deskControls.render();
     this.renderer.render(this.scene, this.cameraRig.camera);
-    this.deskControls.render(this.cameraRig.camera);
   };
 
   private setSectionEnabled = (enabled: boolean): void => {
@@ -231,7 +232,6 @@ export class App {
     this.cameraRig.camera.updateProjectionMatrix();
     this.renderer.setPixelRatio(this.pixelRatio);
     this.renderer.setSize(width, height);
-    this.deskControls.resize(width, height);
     if (this.sectionEnabled) {
       this.cameraRig.camera.position.set(0, CONFIG.presentation.globeHeight, this.sectionCameraDistance);
       this.cameraDestination.copy(this.cameraRig.camera.position);
@@ -243,9 +243,12 @@ export class App {
 
   private get sectionCameraDistance(): number {
     const aspect = this.container.clientWidth / Math.max(1, this.container.clientHeight);
-    // Reserve margin for the full atmospheric cross-section and the brass lever.
-    return Math.max(10.4, 1.85 * CONFIG.presentation.globeScale / (Math.tan(THREE.MathUtils.degToRad(CONFIG.camera.fieldOfView / 2))
-      * Math.min(1, aspect)));
+    const halfFov = Math.tan(THREE.MathUtils.degToRad(CONFIG.camera.fieldOfView / 2));
+    // The flat instruments sit farther forward than the former tilted panel.
+    // Keep the near desk edge in frame even with a front-facing projection.
+    return Math.max(11.8,
+      1.85 * CONFIG.presentation.globeScale / (halfFov * Math.min(1, aspect)),
+      5.1 / (halfFov * Math.max(.35, aspect)) + 2.35);
   }
 
   private showWebGpuError(): void {

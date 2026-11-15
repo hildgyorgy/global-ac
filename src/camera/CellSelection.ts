@@ -59,6 +59,7 @@ export class CellSelection {
     const gesture = this.gesture;
     if (gesture?.id !== event.pointerId) return;
     this.gesture = null;
+    if (event.defaultPrevented) return;
     if (gesture.cancelled || performance.now() - gesture.started > 450 || !this.canSelect()) return;
     this.onSelect(this.pick(event.clientX, event.clientY));
   };

@@ -8,7 +8,8 @@ export interface CameraRig {
 }
 
 export function defaultCameraPosition(aspect: number): { x: number; y: number; z: number } {
-  const fit = Math.max(1, 1.15 / Math.max(0.35, aspect));
+  // Include the inlaid title at the desk's left edge in portrait layouts.
+  const fit = Math.max(1, 1.45 / Math.max(0.35, aspect));
   return { x: 0.15, y: CONFIG.camera.height * fit, z: CONFIG.camera.distance * fit };
 }
 
