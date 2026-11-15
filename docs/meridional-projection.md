@@ -58,6 +58,21 @@ Camera orientation is explicitly updated toward the interpolated target on
 every transition frame, so resuming OrbitControls does not produce a vertical
 snap after moving the camera position.
 
+## Reading-lamp blackout
+
+During the morph, room illumination follows `1 - sectionProgress`: the key,
+local lamp pool, ambient fill, bulb, shade underside and room emissive details
+dim together. The title inlay dims too; the three instrument buttons retain
+independent emission, including a subdued readable off state in darkness.
+At full projection the room is dark and the luminous particles/chart remain.
+Closing reverses the same lighting curve after the chart has faded away.
+
+The textured opaque Earth darkens completely by 45% opening, before the
+existing 50% visibility exchange with the opaque projection face. The face
+starts at background colour; its subtle face tone and surface haze fade in
+from 55% opening onward. This hides the surface exchange without making
+continents transparent to particles or changing their physical trajectories.
+
 Horse latitudes are shown separately as soft illustrative 25–35° bands,
 labelled ≈30° N/S. These indicate the subtropical high-pressure regions near
 the descending Hadley branches, not fixed geographic boundaries or a

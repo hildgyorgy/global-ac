@@ -28,6 +28,8 @@ export class DeskControls {
     emissive: 0x39230c, emissiveIntensity: .22,
   });
   private previousFrame = performance.now();
+  private roomIllumination = 1;
+  private titleLabel!: THREE.Mesh;
 
   constructor(
     container: HTMLElement, private readonly element: HTMLElement, anchor: THREE.Group,
@@ -75,6 +77,7 @@ export class DeskControls {
 
   private addTitle(): void {
     const title = this.lettering('Global Atmospheric Circulation', 2.25, .33, 130);
+    this.titleLabel = title;
     title.position.set(-3.65, 0, .002);
     for (const y of [-.135, .135]) {
       const line = new THREE.Mesh(new THREE.BoxGeometry(2.2, .006, .002), this.brass);
@@ -114,17 +117,26 @@ export class DeskControls {
     const now = performance.now();
     const easing = 1 - Math.exp(-Math.min(.05, (now - this.previousFrame) / 1000) * 10);
     this.previousFrame = now;
+    const darkRoom = 1 - this.roomIllumination;
     for (const item of this.instruments) {
       const toggle = item.button.hasAttribute('aria-pressed');
       const on = toggle ? item.button.getAttribute('aria-pressed') === 'true' : now < item.pulseUntil;
       item.light = THREE.MathUtils.lerp(item.light, on ? 1 : 0, easing);
-      item.face.material.emissiveIntensity = .025 + item.light * .38;
-      item.rim.material.emissiveIntensity = .18 + item.light * .85
+      item.face.material.emissiveIntensity = .025 + darkRoom * .03 + item.light * .38;
+      item.rim.material.emissiveIntensity = .18 + darkRoom * .45 + item.light * .85
         + (document.activeElement === item.button ? .7 : 0);
       const label = item.label.material as THREE.MeshStandardNodeMaterial;
-      label.emissiveIntensity = .3 + item.light * 1.7;
+      label.emissiveIntensity = .3 + darkRoom * .65 + item.light * 1.7;
       label.color.setScalar(.72 + item.light * .28);
     }
+  }
+
+  setRoomIllumination(level: number): void {
+    this.roomIllumination = level;
+    // Title and decorative rules belong to the room. Button faces, labels
+    // and cloned rims remain self-lit in the dark projection view.
+    (this.titleLabel.material as THREE.MeshStandardNodeMaterial).emissiveIntensity = .42 * level;
+    this.brass.emissiveIntensity = .22 * level;
   }
 
   private pick(x: number, y: number): number {

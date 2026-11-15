@@ -17,6 +17,8 @@ export class LibraryStudy extends THREE.Group {
     color: 0x40311c, metalness: 0.48, roughness: 0.6,
   });
   private randomState = 137;
+  private readonly materialDimmers = new Map<THREE.MeshStandardNodeMaterial, number>();
+  private readonly unlitDimmers = new Map<THREE.MeshBasicNodeMaterial | THREE.LineBasicNodeMaterial, THREE.Color>();
 
   constructor() {
     super();
@@ -44,6 +46,25 @@ export class LibraryStudy extends THREE.Group {
     this.controlAnchor.position.set(0, DESK_Y + 0.008, 2.35);
     this.controlAnchor.rotation.x = -Math.PI / 2;
     this.add(this.controlAnchor);
+    // Capture only room materials now. DeskControls is attached later and
+    // keeps its own emissive button lighting independent of the reading lamp.
+    this.traverse(object => {
+      if (!(object instanceof THREE.Mesh || object instanceof THREE.Line)) return;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) {
+        if (material instanceof THREE.MeshStandardNodeMaterial) {
+          this.materialDimmers.set(material, material.emissiveIntensity);
+        } else if (material instanceof THREE.MeshBasicNodeMaterial || material instanceof THREE.LineBasicNodeMaterial) {
+          this.unlitDimmers.set(material, material.color.clone());
+        }
+      }
+    });
+  }
+
+  setIllumination(level: number): void {
+    for (const [material, intensity] of this.materialDimmers) material.emissiveIntensity = intensity * level;
+    // Includes the visible bulb, the warm shade underside and plate light pool.
+    for (const [material, color] of this.unlitDimmers) material.color.copy(color).multiplyScalar(level);
   }
 
   private random(): number {

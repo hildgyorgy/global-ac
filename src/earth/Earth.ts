@@ -1,5 +1,5 @@
 import * as THREE from 'three/webgpu';
-import { color, float, normalWorld, positionWorldDirection, texture } from 'three/tsl';
+import { color, float, normalWorld, positionWorldDirection, texture, uniform } from 'three/tsl';
 import { CONFIG } from '../config';
 
 export class Earth extends THREE.Group {
@@ -7,6 +7,7 @@ export class Earth extends THREE.Group {
   private readonly surfaceMaterial: THREE.MeshStandardNodeMaterial;
   private readonly glowGeometry: THREE.SphereGeometry;
   private readonly glowMaterial: THREE.MeshBasicNodeMaterial;
+  private readonly presentationBrightness = uniform(1);
 
   constructor() {
     super();
@@ -23,7 +24,7 @@ export class Earth extends THREE.Group {
       roughness: 0.82,
       metalness: 0,
     });
-    this.surfaceMaterial.colorNode = texture(colorMap).mul(color(0xd8e0dc));
+    this.surfaceMaterial.colorNode = texture(colorMap).mul(color(0xd8e0dc)).mul(this.presentationBrightness);
 
     const surface = new THREE.Mesh(this.surfaceGeometry, this.surfaceMaterial);
     surface.rotation.y = CONFIG.earth.rotationRadians;
@@ -45,11 +46,18 @@ export class Earth extends THREE.Group {
       blending: THREE.AdditiveBlending,
     });
     this.glowMaterial.colorNode = color(0x3390aa).mul(rim);
-    this.glowMaterial.opacityNode = rim.mul(0.26);
+    this.glowMaterial.opacityNode = rim.mul(0.26).mul(this.presentationBrightness);
 
     const glow = new THREE.Mesh(this.glowGeometry, this.glowMaterial);
     glow.renderOrder = 2;
     this.add(glow);
+  }
+
+  setSectionProgress(progress: number): void {
+    // Make the opaque sphere dark before swapping it for the cut face. Keep
+    // depth testing intact instead of making continents transparent to tracers.
+    const t = THREE.MathUtils.clamp(progress / .45, 0, 1);
+    this.presentationBrightness.value = 1 - t * t * (3 - 2 * t);
   }
 
   dispose(): void {

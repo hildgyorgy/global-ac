@@ -20,6 +20,7 @@ export class App {
   private readonly globe = new THREE.Group();
   private readonly rotatingGlobe = new THREE.Group();
   private readonly study = new LibraryStudy();
+  private readonly roomLights: { light: THREE.Light; intensity: number }[] = [];
   private readonly deskControls: DeskControls;
   private spinAngle = 0;
   private previousFrameTime = 0;
@@ -153,6 +154,9 @@ export class App {
     const lampPool = new THREE.PointLight(0xffc47c, 14, 12, 2);
     lampPool.position.copy(this.study.lampPosition);
     this.scene.add(ambient, sun, sun.target, lampPool);
+    for (const light of [ambient, sun, lampPool]) {
+      this.roomLights.push({ light, intensity: light.intensity });
+    }
 
     this.globe.scale.setScalar(CONFIG.presentation.globeScale);
     this.globe.position.y = CONFIG.presentation.globeHeight;
@@ -230,6 +234,12 @@ export class App {
       this.transitionFrom, this.sectionEnabled ? 1 : 0, eased,
     );
     this.particles.setSectionProgress(this.sectionProgress);
+    const illumination = 1 - this.sectionProgress;
+    for (const { light, intensity } of this.roomLights) light.intensity = intensity * illumination;
+    this.study.setIllumination(illumination);
+    this.deskControls.setRoomIllumination(illumination);
+    this.earth.setSectionProgress(this.sectionProgress);
+    this.earthSection.setOpeningProgress(this.sectionProgress);
     this.diagramOpacity = THREE.MathUtils.lerp(this.diagramFrom, this.sectionEnabled ? 1 : 0, diagramEased);
     this.earthSection.setDiagramOpacity(this.diagramOpacity);
     this.orientationGuides.setDiagramOpacity(this.diagramOpacity);
