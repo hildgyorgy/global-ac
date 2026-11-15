@@ -40,7 +40,7 @@ export class DeskControls {
     anchor.add(this.group);
     this.addTitle();
     const buttons = [...element.querySelectorAll<HTMLButtonElement>('button')];
-    buttons.forEach((button, index) => this.addInstrument(button, [-1.55, 0, 1.55][index]));
+    buttons.forEach((button, index) => this.addInstrument(button, (index - (buttons.length - 1) / 2) * 1.55));
     canvas.addEventListener('pointerdown', this.down, true);
     window.addEventListener('pointermove', this.move, true);
     window.addEventListener('pointerup', this.up, true);
@@ -61,7 +61,8 @@ export class DeskControls {
       // One shared horizontal font scale, calibrated to PROJECTION. Shorter
       // labels keep the same glyph proportions and leave more empty space.
       ctx.translate(center, 0);
-      ctx.scale(Math.min(1, maxWidth / ctx.measureText(reference).width), 1);
+      const referenceWidth = Math.max(ctx.measureText(reference).width, ctx.measureText('JET-STREAMS').width);
+      ctx.scale(Math.min(1, maxWidth / referenceWidth), 1);
       ctx.strokeText(text, 1, 131); ctx.fillText(text, 0, 128);
     } else {
       ctx.strokeText(text, center + 1, 131, maxWidth);
@@ -76,12 +77,12 @@ export class DeskControls {
   }
 
   private addTitle(): void {
-    const title = this.lettering('Global Atmospheric Circulation', 2.25, .33, 130);
+    const title = this.lettering('Global Atmospheric Circulation', 1.50, .23, 130);
     this.titleLabel = title;
-    title.position.set(-3.65, 0, .002);
-    for (const y of [-.135, .135]) {
-      const line = new THREE.Mesh(new THREE.BoxGeometry(2.2, .006, .002), this.brass);
-      line.position.set(-3.65, y, .001); this.group.add(line);
+    title.position.set(-4.04, 0, .002);
+    for (const y of [-.095, .095]) {
+      const line = new THREE.Mesh(new THREE.BoxGeometry(1.46, .006, .002), this.brass);
+      line.position.set(-4.04, y, .001); this.group.add(line);
     }
   }
 

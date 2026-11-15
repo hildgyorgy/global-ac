@@ -25,6 +25,8 @@ import { coriolisVisualScaleNode, zonalCoriolisAccelerationNode } from './Coriol
 import { GpuParticleTrails } from './GpuParticleTrails';
 import { cellFocusNode } from './CellSelectionNode';
 import { meridionalProjectionNode } from './MeridionalProjectionNode';
+import { JET_STREAMS_MODEL } from './JetStreamsModel';
+import { jetEastwardSpeedNode } from './JetStreamsNode';
 
 // Keep only a numerical epsilon at latitude separatrices, not visible gaps.
 const LATITUDE_EPSILON = 0.0001;
@@ -38,6 +40,9 @@ export class GpuParticleSystem extends THREE.Sprite {
   private readonly coriolisStrength;
   private readonly spinAngle;
   private readonly selectedCell;
+  private readonly jetStrength;
+  private jetTarget = 0;
+  private previousComputeTime = 0;
   private readonly computeInit: ComputeNode;
   private readonly computeUpdate: ComputeNode;
 
@@ -48,6 +53,7 @@ export class GpuParticleSystem extends THREE.Sprite {
     const coriolisStrength = uniform(0);
     const spinAngle = uniform(0);
     const selectedCell = uniform(-1);
+    const jetStrength = uniform(0);
     const zonalSpeeds = instancedArray(count, 'float').setName('particleZonalSpeeds');
     const positions = instancedArray(count, 'vec4').setName('particlePositions');
     const velocities = instancedArray(count, 'vec4').setName('particleVelocities');
@@ -134,8 +140,7 @@ export class GpuParticleSystem extends THREE.Sprite {
       const northwardSpeed = field.x.mul(radius);
       const acceleration = zonalCoriolisAccelerationNode(state.x, northwardSpeed)
         .mul(coriolisStrength);
-      const drag = float(CORIOLIS_MODEL.switchOffDrag)
-        .mix(CORIOLIS_MODEL.drag, coriolisStrength);
+      const drag = mix(CORIOLIS_MODEL.switchOffDrag, CORIOLIS_MODEL.drag, coriolisStrength);
       // Exact damped update for frozen f,v over one frame; no CPU state copies.
       const decay = drag.mul(dt).negate().exp();
       zonalSpeed.assign(zonalSpeed.mul(decay)
@@ -144,9 +149,21 @@ export class GpuParticleSystem extends THREE.Sprite {
       // Convert eastward linear speed to negative longitude rate. Regularize
       // near the poles where longitude itself becomes singular.
       const longitudeLimit = coriolisVisualScaleNode(state.x).mul(CORIOLIS_MODEL.maxLongitudeRate);
-      const longitudeRate = zonalSpeed.negate()
-        .div(radius.mul(state.x.cos().max(CORIOLIS_MODEL.minimumCosLatitude)))
+      const zonalMetric = radius.mul(state.x.cos().max(CORIOLIS_MODEL.minimumCosLatitude));
+      const backgroundLongitudeRate = zonalSpeed.negate()
+        .div(zonalMetric)
         .clamp(longitudeLimit.negate(), longitudeLimit);
+
+      // Actual background velocity after the cap. dr/dt includes the
+      // latitude-dependent shell thickness, not just normalized altitude.
+      const thicknessDifference = CONFIG.atmosphere.equatorialShellThickness - CONFIG.atmosphere.polarShellThickness;
+      const thickness = state.x.cos().pow(2).mul(thicknessDifference)
+        .add(CONFIG.atmosphere.polarShellThickness);
+      const radialSpeed = field.z.mul(thickness).sub(state.z.mul(2 * thicknessDifference)
+        .mul(state.x.cos()).mul(state.x.sin()).mul(field.x));
+      const eastward = jetEastwardSpeedNode(state.x, state.z,
+        backgroundLongitudeRate.negate().mul(zonalMetric), northwardSpeed, radialSpeed, jetStrength);
+      const longitudeRate = eastward.negate().div(zonalMetric);
 
       state.x.addAssign(field.x.mul(dt));
       state.y.addAssign(longitudeRate.mul(dt));
@@ -244,6 +261,7 @@ export class GpuParticleSystem extends THREE.Sprite {
     this.coriolisStrength = coriolisStrength;
     this.spinAngle = spinAngle;
     this.selectedCell = selectedCell;
+    this.jetStrength = jetStrength;
     this.count = count;
     this.frustumCulled = false;
     this.renderOrder = 3;
@@ -255,9 +273,17 @@ export class GpuParticleSystem extends THREE.Sprite {
     await renderer.computeAsync(this.computeInit);
     await renderer.computeAsync(this.computeUpdate);
     await this.trails.initialize(renderer);
+    this.previousComputeTime = performance.now();
   }
 
   compute(renderer: THREE.WebGPURenderer): void {
+    // Only this global switch scalar is eased on the CPU; all per-particle
+    // field evaluation, advection and history updates stay on the GPU.
+    const now = performance.now();
+    const dt = Math.min(.05, Math.max(0, (now - this.previousComputeTime) / 1000));
+    this.previousComputeTime = now;
+    this.jetStrength.value += (this.jetTarget - this.jetStrength.value)
+      * (1 - Math.exp(-dt / JET_STREAMS_MODEL.switchTimeSeconds));
     renderer.compute(this.computeUpdate);
     this.trails.compute(renderer);
   }
@@ -270,6 +296,8 @@ export class GpuParticleSystem extends THREE.Sprite {
   setCoriolisEnabled(enabled: boolean): void {
     this.coriolisStrength.value = enabled ? 1 : 0;
   }
+
+  setJetsEnabled(enabled: boolean): void { this.jetTarget = enabled ? 1 : 0; }
 
   setSpinAngle(angle: number): void {
     this.spinAngle.value = angle;

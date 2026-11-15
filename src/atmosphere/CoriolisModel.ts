@@ -7,7 +7,9 @@
 export const CORIOLIS_MODEL = {
   // Visual time scaling: doubled from 0.57 for stronger lateral drift.
   displayAngularVelocity: 1.14,
-  drag: 0.16,
+  // Preserve the previous displayed on-state damping, now expressed
+  // explicitly instead of relying on an incorrectly ordered TSL mix.
+  drag: 1.336,
   switchOffDrag: 1.4,
   minimumCosLatitude: 0.12,
   maxLongitudeRate: 0.44,

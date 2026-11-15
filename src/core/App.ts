@@ -28,6 +28,7 @@ export class App {
   private readonly orientationGuides = new OrientationGuides();
   private readonly sectionSwitch: SectionSwitch;
   private readonly coriolisSwitch: SectionSwitch;
+  private readonly jetsSwitch: SectionSwitch;
   private readonly instrumentControls = document.createElement('div');
   private readonly resetButton = document.createElement('button');
   private readonly cellSelection: CellSelection;
@@ -70,13 +71,17 @@ export class App {
       (enabled) => this.particles.setCoriolisEnabled(enabled),
       { label: 'Coriolis' },
     );
+    this.jetsSwitch = new SectionSwitch(
+      (enabled) => this.particles.setJetsEnabled(enabled), { label: 'Jet-streams' },
+    );
     this.instrumentControls.className = 'instrument-controls';
     this.resetButton.type = 'button';
     this.resetButton.className = 'section-switch reset-button';
     this.resetButton.setAttribute('aria-label', 'Reset view');
     this.resetButton.textContent = 'Reset';
     this.resetButton.addEventListener('click', this.resetView);
-    this.instrumentControls.append(this.sectionSwitch.element, this.coriolisSwitch.element, this.resetButton);
+    this.instrumentControls.append(this.sectionSwitch.element, this.coriolisSwitch.element,
+      this.jetsSwitch.element, this.resetButton);
     this.configureScene();
     this.deskControls = new DeskControls(container, this.instrumentControls, this.study.controlAnchor,
       this.renderer.domElement, this.cameraRig.camera);
@@ -112,6 +117,7 @@ export class App {
     this.cellSelection.dispose();
     this.sectionSwitch.dispose();
     this.coriolisSwitch.dispose();
+    this.jetsSwitch.dispose();
     this.resetButton.removeEventListener('click', this.resetView);
     this.instrumentControls.remove();
     this.deskControls.dispose();

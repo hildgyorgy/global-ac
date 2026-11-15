@@ -70,7 +70,7 @@ snap after moving the camera position.
 
 During the morph, room illumination follows `1 - sectionProgress`: the key,
 local lamp pool, ambient fill, bulb, shade underside and room emissive details
-dim together. The title inlay dims too; the three instrument buttons retain
+dim together. The title inlay dims too; the four instrument buttons retain
 independent emission, including a subdued readable off state in darkness.
 At full projection the room is dark and the luminous particles/chart remain.
 Closing reverses the same lighting curve after the chart has faded away.
