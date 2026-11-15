@@ -3,46 +3,63 @@ import assert from 'node:assert/strict';
 import { particleRadius } from '../src/atmosphere/geometry.ts';
 import { ANTICYCLONE_MODEL as m, sampleAnticyclone } from '../src/atmosphere/AnticycloneModel.ts';
 
+const centre = m.centres[0];
+
 const background = { eastward: 0.04, northward: -0.03, altitudeVelocity: 0.02 };
 const calm = { eastward: 0, northward: 0, altitudeVelocity: 0 };
-const point = (east, north) => [m.latitude + north, m.longitude + east / Math.cos(m.latitude)];
+const point = (east, north) => [
+  centre.latitude + north,
+  centre.longitude + east / Math.cos(centre.latitude),
+];
 
 test('disabled, distant and uppermost flow reproduce the ambient wind exactly', () => {
   for (const [latitude, longitude, altitude, strength] of [
-    [m.latitude, m.longitude, 0.2, 0],
-    [m.latitude, m.longitude + Math.PI, 0.2, 1],
-    [m.latitude + m.outerRadius + 0.01, m.longitude, 0.2, 1],
-    [m.latitude, m.longitude, 1, 1],
+    [centre.latitude, centre.longitude, 0.2, 0],
+    [centre.latitude, centre.longitude + Math.PI, 0.2, 1],
+    [centre.latitude + m.outerRadius + 0.01, centre.longitude, 0.2, 1],
+    [centre.latitude, centre.longitude, 1, 1],
   ]) {
     const wind = sampleAnticyclone(latitude, longitude, altitude, background, strength);
     assert.deepEqual(wind, { ...background, influence: 0 });
   }
 });
 
-test('surface flow turns clockwise and spirals outward on every side of the northern high', () => {
-  for (let i = 0; i < 24; i++) {
-    const angle = (i * Math.PI) / 12;
-    const east = 0.12 * Math.cos(angle),
-      north = 0.12 * Math.sin(angle);
-    const wind = sampleAnticyclone(...point(east, north), 0.1, calm);
-    assert.ok(east * wind.northward - north * wind.eastward < 0, 'clockwise circulation');
-    assert.ok(east * wind.eastward + north * wind.northward > 0, 'surface divergence');
-  }
+test('every high spirals outward with the correct hemisphere-dependent rotation', () => {
+  for (const high of m.centres)
+    for (let i = 0; i < 24; i++) {
+      const angle = (i * Math.PI) / 12;
+      const east = 0.12 * Math.cos(angle),
+        north = 0.12 * Math.sin(angle);
+      const wind = sampleAnticyclone(
+        high.latitude + north,
+        high.longitude + east / Math.cos(high.latitude),
+        0.1,
+        calm,
+      );
+      const turning = east * wind.northward - north * wind.eastward;
+      assert.ok(turning * Math.sign(high.latitude) < 0, high.name);
+      assert.ok(
+        east * wind.eastward + north * wind.northward > 0,
+        `${high.name}: surface divergence`,
+      );
+    }
 });
 
 test('upper flow converges and the core descends without crossing the surface', () => {
   const wind = sampleAnticyclone(...point(0.12, 0.04), 0.75, calm);
   assert.ok(0.12 * wind.eastward + 0.04 * wind.northward < 0);
   for (const altitude of [0.1, 0.4, 0.8]) {
-    assert.ok(sampleAnticyclone(m.latitude, m.longitude, altitude, calm).altitudeVelocity < 0);
+    assert.ok(
+      sampleAnticyclone(centre.latitude, centre.longitude, altitude, calm).altitudeVelocity < 0,
+    );
   }
-  assert.equal(sampleAnticyclone(m.latitude, m.longitude, 0, calm).altitudeVelocity, 0);
+  assert.equal(sampleAnticyclone(centre.latitude, centre.longitude, 0, calm).altitudeVelocity, 0);
 });
 
 test('longitude wrapping and regional fade are continuous and finite', () => {
   for (const longitude of [-Math.PI, -1, 0, 1, Math.PI]) {
-    const a = sampleAnticyclone(m.latitude, longitude, 0.2, background);
-    const b = sampleAnticyclone(m.latitude, longitude + 2 * Math.PI, 0.2, background);
+    const a = sampleAnticyclone(centre.latitude, longitude, 0.2, background);
+    const b = sampleAnticyclone(centre.latitude, longitude + 2 * Math.PI, 0.2, background);
     for (const key of Object.keys(a)) assert.ok(Math.abs(a[key] - b[key]) < 1e-12);
   }
   const inside = sampleAnticyclone(...point(m.outerRadius - 1e-6, 0), 0.2, background);
@@ -72,8 +89,8 @@ test('advected surface tracers expand out of the core instead of following close
 });
 
 test('an ambient tracer enters the regional flow and leaves it again', () => {
-  let latitude = m.latitude,
-    longitude = m.longitude - 0.5 / Math.cos(m.latitude),
+  let latitude = centre.latitude,
+    longitude = centre.longitude - 0.5 / Math.cos(centre.latitude),
     altitude = 0.15;
   let peakInfluence = 0,
     leftAfterEntry = false;
@@ -93,4 +110,30 @@ test('an ambient tracer enters the regional flow and leaves it again', () => {
   }
   assert.ok(peakInfluence > 0.3);
   assert.ok(leftAfterEntry);
+});
+
+test('all five cores descend and retain a bounded global blend', () => {
+  assert.equal(m.centres.length, 5);
+  assert.equal(m.centres.filter((high) => high.latitude > 0).length, 2);
+  assert.equal(m.centres.filter((high) => high.latitude < 0).length, 3);
+  for (const high of m.centres) {
+    assert.ok(
+      sampleAnticyclone(high.latitude, high.longitude, 0.5, calm).altitudeVelocity < 0,
+      high.name,
+    );
+    const a = sampleAnticyclone(high.latitude, high.longitude, 0.2, background);
+    const b = sampleAnticyclone(high.latitude, high.longitude + 2 * Math.PI, 0.2, background);
+    for (const key of Object.keys(a)) assert.ok(Math.abs(a[key] - b[key]) < 1e-12, high.name);
+  }
+  for (let latitude = -Math.PI / 2; latitude <= Math.PI / 2; latitude += 0.1) {
+    for (let longitude = -Math.PI; longitude <= Math.PI; longitude += 0.1) {
+      const wind = sampleAnticyclone(latitude, longitude, 0.2, background);
+      assert.ok(wind.influence >= 0 && wind.influence <= 1);
+      assert.ok(Object.values(wind).every(Number.isFinite));
+      assert.deepEqual(sampleAnticyclone(latitude, longitude, 0.2, background, 0), {
+        ...background,
+        influence: 0,
+      });
+    }
+  }
 });

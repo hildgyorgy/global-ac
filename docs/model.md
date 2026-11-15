@@ -85,10 +85,11 @@ The reading lamp provides artistic lighting through a local point light and
 an aligned shadow-casting directional light, plus faint ambient fill. It is
 not a live astronomical Sun model or physically computed global illumination.
 
-## Regional subtropical high
+## Regional subtropical highs
 
-The optional [Azores–Bermuda prototype](anticyclone.md) blends the ambient flow
-with a geographically anchored clockwise spiral, low-level outflow, weak upper
-convergence and central descent. It uses existing particles and the shared
-temperature model, with no additional tracer population. It is a prescribed
-regional field rather than a pressure-driven weather simulation.
+The optional [five oceanic high prototypes](anticyclone.md) blend the ambient
+flow with geographically anchored spirals: clockwise in the north and
+counterclockwise in the south, with low-level outflow, weak upper convergence
+and central descent. They use existing particles and the shared
+temperature model, with no additional tracer population. These are prescribed
+regional fields rather than a pressure-driven weather simulation.

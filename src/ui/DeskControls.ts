@@ -93,7 +93,6 @@ export class DeskControls {
       const referenceWidth = Math.max(
         ctx.measureText(reference).width,
         ctx.measureText('JET-STREAMS').width,
-        ctx.measureText('AZORES HIGH').width,
       );
       ctx.scale(Math.min(1, maxWidth / referenceWidth), 1);
       ctx.strokeText(text, 1, 131);

@@ -1,10 +1,31 @@
-/** Prescribed Azores–Bermuda circulation in geographic coordinates.
+/** Prescribed oceanic subtropical highs in geographic coordinates.
  * Horizontal velocities use Earth-radius/display-second units; vertical
  * velocity uses normalized shell altitude/display second.
  */
 export const ANTICYCLONE_MODEL = {
-  latitude: (32 * Math.PI) / 180,
-  longitude: (-45 * Math.PI) / 180,
+  centres: [
+    {
+      name: 'Azores–Bermuda High',
+      latitude: (32 * Math.PI) / 180,
+      longitude: (-45 * Math.PI) / 180,
+    },
+    {
+      name: 'North Pacific High',
+      latitude: (32 * Math.PI) / 180,
+      longitude: (-145 * Math.PI) / 180,
+    },
+    {
+      name: 'South Atlantic High',
+      latitude: (-30 * Math.PI) / 180,
+      longitude: (-15 * Math.PI) / 180,
+    },
+    {
+      name: 'South Pacific High',
+      latitude: (-30 * Math.PI) / 180,
+      longitude: (-100 * Math.PI) / 180,
+    },
+    { name: 'Mascarene High', latitude: (-30 * Math.PI) / 180, longitude: (70 * Math.PI) / 180 },
+  ],
   coreRadius: (11 * Math.PI) / 180,
   outerRadius: (24 * Math.PI) / 180,
   rotationRate: 0.9,
@@ -37,32 +58,36 @@ export function sampleAnticyclone(
   strength = 1,
 ): AnticycloneWind & { influence: number } {
   const m = ANTICYCLONE_MODEL;
-  const deltaLongitude = Math.atan2(
-    Math.sin(longitude - m.longitude),
-    Math.cos(longitude - m.longitude),
-  );
-  const east = deltaLongitude * Math.cos(m.latitude);
-  const north = latitude - m.latitude;
-  const distance = Math.hypot(east, north);
   const height = Math.min(1, Math.max(0, altitude));
-  const influence =
-    (1 - smoothstep(distance, m.coreRadius, m.outerRadius)) *
-    (1 - smoothstep(height, m.upperFadeStart, m.upperFadeEnd)) *
-    Math.min(1, Math.max(0, strength));
-  const rotation = m.rotationRate * (1 - 0.55 * height);
+  const heightWeight =
+    (1 - smoothstep(height, m.upperFadeStart, m.upperFadeEnd)) * Math.min(1, Math.max(0, strength));
   const radial = m.radialRate * Math.cos(Math.PI * height);
-  const core = Math.exp(-0.5 * (distance / m.coreRadius) ** 2);
-  const target = {
-    eastward: rotation * north + radial * east,
-    northward: -rotation * east + radial * north,
-    altitudeVelocity: -m.descentRate * core * Math.sin(Math.PI * height),
-  };
+  const weighted = { eastward: 0, northward: 0, altitudeVelocity: 0 };
+  let totalWeight = 0;
+  for (const centre of m.centres) {
+    const deltaLongitude = Math.atan2(
+      Math.sin(longitude - centre.longitude),
+      Math.cos(longitude - centre.longitude),
+    );
+    const east = deltaLongitude * Math.cos(centre.latitude);
+    const north = latitude - centre.latitude;
+    const distance = Math.hypot(east, north);
+    const weight = (1 - smoothstep(distance, m.coreRadius, m.outerRadius)) * heightWeight;
+    const rotation = m.rotationRate * (1 - 0.55 * height) * Math.sign(centre.latitude);
+    const core = Math.exp(-0.5 * (distance / m.coreRadius) ** 2);
+    weighted.eastward += (rotation * north + radial * east) * weight;
+    weighted.northward += (-rotation * east + radial * north) * weight;
+    weighted.altitudeVelocity += -m.descentRate * core * Math.sin(Math.PI * height) * weight;
+    totalWeight += weight;
+  }
+  // A normalized blend stays bounded even if future regional footprints overlap.
+  const influence = Math.min(1, totalWeight);
+  const divisor = Math.max(1, totalWeight);
   return {
-    eastward: background.eastward + (target.eastward - background.eastward) * influence,
-    northward: background.northward + (target.northward - background.northward) * influence,
+    eastward: background.eastward * (1 - influence) + weighted.eastward / divisor,
+    northward: background.northward * (1 - influence) + weighted.northward / divisor,
     altitudeVelocity:
-      background.altitudeVelocity +
-      (target.altitudeVelocity - background.altitudeVelocity) * influence,
+      background.altitudeVelocity * (1 - influence) + weighted.altitudeVelocity / divisor,
     influence,
   };
 }

@@ -12,7 +12,7 @@ and its instanced fibres use lit materials. See [the model](model.md) for lighti
 and atmospheric limitations.
 
 `DeskControls.ts` places equal recessed brass pills in the tabletop: PROJECTION,
-CORIOLIS, JET-STREAMS, AZORES HIGH and RESET. The title is inlaid above the row, toward the globe.
+CORIOLIS, JET-STREAMS, HIGHS and RESET. The title is inlaid above the row, toward the globe.
 Active controls glow softly in amber; RESET pulses briefly. Real depth testing
 allows foreground particles to pass in front of the controls.
 

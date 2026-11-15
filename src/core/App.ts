@@ -86,9 +86,9 @@ export class App {
     );
     this.anticycloneSwitch = new SectionSwitch(
       (enabled) => this.particles.setAnticycloneEnabled(enabled),
-      { label: 'Azores High' },
+      { label: 'Highs' },
     );
-    this.anticycloneSwitch.element.setAttribute('aria-label', 'Azores–Bermuda high');
+    this.anticycloneSwitch.element.setAttribute('aria-label', 'Subtropical highs');
     this.instrumentControls.className = 'instrument-controls';
     this.resetButton.type = 'button';
     this.resetButton.className = 'section-switch reset-button';

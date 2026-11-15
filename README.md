@@ -2,7 +2,7 @@
 
 A WebGPU atmospheric circulation globe in a dark library study, built with
 Three.js, TypeScript and Vite. GPU particles show idealized Hadley, Ferrel and
-polar cells, optional Coriolis deflection, jet streams and an Azores–Bermuda high. A meridional
+polar cells, optional Coriolis deflection, jet streams and five oceanic subtropical highs. A meridional
 projection reveals the vertical circulation.
 
 [Open the live globe](https://hildgyorgy.github.io/global-ac/).
@@ -30,7 +30,7 @@ pnpm preview
 
 With the development server running, `/tests/jet-gpu.html` checks the actual
 GPU circulation, Coriolis, geometry and jet calculations against CPU references. The companion `/tests/anticyclone-gpu.html` checks the
-regional high and its geographic anchoring.
+regional highs and their geographic anchoring.
 GitHub Actions runs the physics tests and build, then deploys `dist/` to Pages.
 
 ## Project files

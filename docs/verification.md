@@ -36,7 +36,7 @@ Use the production preview and inspect the browser's WebGPU console:
 
 - Globe particles, temperature colours and short fading trails remain visible;
   run long enough for several respawns and check for teleport streaks.
-- Toggle Coriolis, jets and AZORES HIGH in both views; verify active button states, jet tags
+- Toggle Coriolis, jets and HIGHS in both views; verify active button states, jet tags
   and that RESET preserves wind settings while clearing cell focus.
 - Open projection: particles unfold before chart labels appear, while the room
   dims. Reverse the transition, including toggling midway, and check for jumps.
@@ -56,8 +56,8 @@ and verify that the real error handler replaces the canvas with an alert.
 The simulated failure is expected in the console; the page must report PASS
 without an unhandled rejection.
 
-For the regional high, open `/tests/anticyclone-gpu.html` and require PASS. In
-globe view, enable AZORES HIGH and inspect the North Atlantic: trajectories
-should turn clockwise, broaden outward near the surface, and blend back into
-the ambient flow. Check coexistence with jets and cell selection, plus the
+For the regional highs, open `/tests/anticyclone-gpu.html` and require PASS. In
+globe view, enable HIGHS and inspect all five ocean basins: trajectories
+should turn clockwise north of the equator and counterclockwise south of it,
+broaden outward near the surface, and blend back into the ambient flow. Check coexistence with jets and cell selection, plus the
 five-button row in wide and portrait viewports.

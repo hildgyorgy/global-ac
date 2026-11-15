@@ -10,32 +10,33 @@ import { geographicLongitudeNode } from '../src/atmosphere/GeometryNode';
 async function check(): Promise<void> {
   if (!WebGPU.isAvailable()) throw new Error('WebGPU is required for this check.');
   const cases: number[][] = [];
-  for (const latitude of [
-    -Math.PI / 2,
-    0,
-    model.latitude - model.outerRadius,
-    model.latitude - model.coreRadius,
-    model.latitude,
-    model.latitude + model.coreRadius,
-    model.latitude + model.outerRadius,
-    Math.PI / 2,
-  ]) {
-    for (const longitude of [
-      -Math.PI,
-      model.longitude - 2 * Math.PI,
-      model.longitude - 0.4,
-      model.longitude,
-      model.longitude + 0.4,
+  for (const centre of model.centres)
+    for (const latitude of [
+      -Math.PI / 2,
       0,
-      Math.PI,
+      centre.latitude - model.outerRadius,
+      centre.latitude - model.coreRadius,
+      centre.latitude,
+      centre.latitude + model.coreRadius,
+      centre.latitude + model.outerRadius,
+      Math.PI / 2,
     ]) {
-      for (const altitude of [0, 0.1, 0.5, 0.75, 0.94, 1]) {
-        for (const strength of [0, 0.5, 1]) {
-          cases.push([latitude, particleLongitude(longitude), altitude, strength]);
+      for (const longitude of [
+        -Math.PI,
+        centre.longitude - 2 * Math.PI,
+        centre.longitude - 0.4,
+        centre.longitude,
+        centre.longitude + 0.4,
+        0,
+        Math.PI,
+      ]) {
+        for (const altitude of [0, 0.1, 0.5, 0.75, 0.94, 1]) {
+          for (const strength of [0, 0.5, 1]) {
+            cases.push([latitude, particleLongitude(longitude), altitude, strength]);
+          }
         }
       }
     }
-  }
   const inputs = instancedArray(new Float32Array(cases.flat()), 'vec4');
   const output = instancedArray(cases.length, 'vec4');
   const compute = Fn(() => {
