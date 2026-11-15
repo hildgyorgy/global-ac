@@ -22,6 +22,30 @@ export class OrientationGuides extends THREE.Group {
     });
     const line = (points: THREE.Vector3[], material: THREE.LineBasicNodeMaterial) =>
       new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), material);
+    // Static geometric dashes work identically in WebGPU for straight chords
+    // and spherical arcs. Pattern distances are measured along the whole path.
+    const patternedLine = (points: THREE.Vector3[], material: THREE.LineBasicNodeMaterial,
+      pattern: readonly number[]) => {
+      const segments: THREE.Vector3[] = [];
+      let phase = 0, remaining = pattern[0];
+      for (let i = 1; i < points.length; i++) {
+        const start = points[i - 1], end = points[i];
+        const length = start.distanceTo(end);
+        let distance = 0;
+        while (distance < length - 1e-8) {
+          const step = Math.min(remaining, length - distance);
+          if (phase % 2 === 0) segments.push(
+            start.clone().lerp(end, distance / length),
+            start.clone().lerp(end, (distance + step) / length),
+          );
+          distance += step; remaining -= step;
+          if (remaining < 1e-8) { phase = (phase + 1) % pattern.length; remaining = pattern[phase]; }
+        }
+      }
+      return new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(segments), material);
+    };
+    const axisPattern = [.065, .018, .007, .018];
+    const latitudePattern = [.028, .022];
 
     const longitudeMaterial = new THREE.LineBasicNodeMaterial({
       color: 0x99815b, transparent: true, opacity: 0.24, depthWrite: false,
@@ -45,10 +69,10 @@ export class OrientationGuides extends THREE.Group {
 
     // Normal depth testing hides the axis inside the solid globe and the far
     // half of the equator behind the Earth.
-    this.globeGuides.add(line([
+    this.globeGuides.add(patternedLine([
       new THREE.Vector3(0, -axisExtent, 0),
       new THREE.Vector3(0, axisExtent, 0),
-    ], axisMaterial));
+    ], axisMaterial, axisPattern));
 
     // The tropics and polar circles follow the same obliquity as the axis.
     const obliquity = Math.abs(CONFIG.earth.axialTiltDegrees);
@@ -67,23 +91,26 @@ export class OrientationGuides extends THREE.Group {
           Math.sin(angle) * circleRadius,
         ));
       }
-      this.globeGuides.add(line(circle, material));
+      this.globeGuides.add(degrees === 0 ? line(circle, material)
+        : patternedLine(circle, material, latitudePattern));
 
       // A meridional cut intersects a parallel at two surface points. The
       // connecting chord is a quiet orientation guide across the cut face.
       const halfChord = radius * Math.cos(latitude);
       const sectionHeight = radius * Math.sin(latitude);
-      this.sectionGuides.add(line([
+      const chord = [
         new THREE.Vector3(-halfChord, sectionHeight, -0.09),
         new THREE.Vector3(halfChord, sectionHeight, -0.09),
-      ], material));
+      ];
+      this.sectionGuides.add(degrees === 0 ? line(chord, material)
+        : patternedLine(chord, material, latitudePattern));
     }
 
     // In section, both markings lie just in front of the opaque cut face.
-    this.sectionGuides.add(line([
+    this.sectionGuides.add(patternedLine([
       new THREE.Vector3(0, -axisExtent, -0.09),
       new THREE.Vector3(0, axisExtent, -0.09),
-    ], axisMaterial));
+    ], axisMaterial, axisPattern));
     this.sectionGuides.visible = false;
     this.add(this.globeGuides, this.sectionGuides);
   }

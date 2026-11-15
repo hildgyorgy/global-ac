@@ -29,6 +29,15 @@ line and the degree value below. The Arctic Circle reverses that ordering
 to keep its longer name inside the globe. Horse-latitude labels similarly
 straddle their soft band centres.
 
+The projection has no gold surface-outline ring. A neutral, faint haze begins
+at the actual surface radius and fades outward across 0.085 model units. This
+is a graphical bridge across the existing clearance, not a pressure, density
+or temperature field; particle altitude is unchanged and the haze is absent
+from the globe view.
+The rotation axis uses dash–dot marks, tropics and polar circles short dashes
+in both views. Equator and meridians retain continuous lines. Horse-latitude
+bands are unchanged.
+
 Horse latitudes are shown separately as soft illustrative 25–35° bands,
 labelled ≈30° N/S. These indicate the subtropical high-pressure regions near
 the descending Hadley branches, not fixed geographic boundaries or a
