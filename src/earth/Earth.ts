@@ -12,8 +12,8 @@ export class Earth extends THREE.Group {
     super();
 
     const loader = new THREE.TextureLoader();
-    const colorMap = loader.load('/textures/earth_atmos_2048.jpg');
-    const normalMap = loader.load('/textures/earth_normal_2048.jpg');
+    const colorMap = loader.load(`${import.meta.env.BASE_URL}textures/earth_atmos_2048.jpg`);
+    const normalMap = loader.load(`${import.meta.env.BASE_URL}textures/earth_normal_2048.jpg`);
     colorMap.colorSpace = THREE.SRGBColorSpace;
 
     this.surfaceGeometry = new THREE.SphereGeometry(CONFIG.earth.radius, 96, 64);
@@ -28,6 +28,8 @@ export class Earth extends THREE.Group {
     const surface = new THREE.Mesh(this.surfaceGeometry, this.surfaceMaterial);
     surface.rotation.y = CONFIG.earth.rotationRadians;
     surface.renderOrder = 1;
+    surface.castShadow = true;
+    surface.receiveShadow = true;
     this.add(surface);
 
     const rim = float(1)
