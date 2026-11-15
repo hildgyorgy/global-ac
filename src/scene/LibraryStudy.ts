@@ -233,15 +233,17 @@ export class LibraryStudy extends THREE.Group {
     this.cylinder(.073, .005, new THREE.MeshStandardNodeMaterial({ color: 0x010303, roughness: .12 }), 0, .356, 0, set);
     this.cylinder(.095, .035, this.brass, .3, .025, .08, set);
     const quill = new THREE.Group(); quill.position.set(0, .26, 0); quill.rotation.z = -.3; quill.rotation.y = -.35; set.add(quill);
-    const featherMaterial = new THREE.MeshStandardNodeMaterial({ color: 0xd3c5a5, roughness: .9, side: THREE.DoubleSide });
+    const featherMaterial = new THREE.MeshStandardNodeMaterial({ color: 0xa19378, roughness: .9, side: THREE.DoubleSide });
     const feather = new THREE.Shape();
     feather.moveTo(0, .23); feather.quadraticCurveTo(-.34, .74, .04, 1.65);
     feather.quadraticCurveTo(.4, .86, 0, .23);
-    const vane = new THREE.Mesh(new THREE.ShapeGeometry(feather, 32), featherMaterial); quill.add(vane);
+    const vane = new THREE.Mesh(new THREE.ShapeGeometry(feather, 32), featherMaterial);
+    vane.castShadow = true; vane.receiveShadow = true; quill.add(vane);
     const rachis = new THREE.CatmullRomCurve3([
       new THREE.Vector3(0,0,.008), new THREE.Vector3(0,.6,.015), new THREE.Vector3(.04,1.65,.008),
     ]);
-    quill.add(new THREE.Mesh(new THREE.TubeGeometry(rachis, 24, .007, 6, false), featherMaterial));
+    const shaft = new THREE.Mesh(new THREE.TubeGeometry(rachis, 24, .007, 6, false), featherMaterial);
+    shaft.castShadow = true; shaft.receiveShadow = true; quill.add(shaft);
     const barbs: THREE.Vector3[] = [];
     for (let i = 0; i < 35; i++) {
       const y = .32 + i * .034;
@@ -249,8 +251,22 @@ export class LibraryStudy extends THREE.Group {
       barbs.push(new THREE.Vector3(.02, y, .014), new THREE.Vector3(-width, y + .13, .014));
       barbs.push(new THREE.Vector3(.02, y, .015), new THREE.Vector3(width, y + .12, .015));
     }
-    quill.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(barbs),
-      new THREE.LineBasicNodeMaterial({ color: 0x827358, transparent: true, opacity: .38 })));
+    // Fine raised fibres receive the same lamp and room fill as the vane.
+    // Instancing keeps all fibres in one draw, without unlit line materials.
+    const fibres = new THREE.InstancedMesh(new THREE.CylinderGeometry(.0007, .0007, 1, 3),
+      new THREE.MeshStandardNodeMaterial({ color: 0x71654f, roughness: 1 }), barbs.length / 2);
+    const transform = new THREE.Object3D();
+    const up = new THREE.Vector3(0, 1, 0);
+    for (let i = 0; i < barbs.length; i += 2) {
+      const start = barbs[i], end = barbs[i + 1];
+      const direction = end.clone().sub(start);
+      transform.position.copy(start).add(end).multiplyScalar(.5);
+      transform.scale.set(1, direction.length(), 1);
+      transform.quaternion.setFromUnitVectors(up, direction.normalize());
+      transform.updateMatrix(); fibres.setMatrixAt(i / 2, transform.matrix);
+    }
+    fibres.instanceMatrix.needsUpdate = true;
+    fibres.receiveShadow = true; quill.add(fibres);
     // Spare brass nib pen resting on the desk next to the ink.
     const pen = new THREE.Mesh(new THREE.CylinderGeometry(.018, .024, .95, 12), this.darkBrass);
     pen.rotation.set(Math.PI / 2, 0, -.4); pen.position.set(.1, .04, .48); set.add(pen);
