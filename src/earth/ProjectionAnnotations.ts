@@ -52,7 +52,6 @@ export class ProjectionAnnotations extends THREE.Group {
     ctx.fillStyle = '#c1a77c'; ctx.font = '44px Georgia, "Times New Roman", serif';
     ctx.fillText(title, edge, subtitle ? (flipped ? 132 : 60) : 96);
     if (subtitle) {
-      ctx.fillStyle = '#8f805f'; ctx.font = '35px Georgia, "Times New Roman", serif';
       ctx.fillText(subtitle, edge, flipped ? 60 : 132);
     }
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, 192 / 1280),
