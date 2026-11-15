@@ -49,3 +49,8 @@ export function sampleHadleyModel(
       HADLEY_MODEL.latitudeCoolingKelvin * (absoluteLatitude / HADLEY_MODEL.cellEdgeRadians),
   };
 }
+
+/** Convert physical temperature to the normalized rendering attribute. */
+export function normalizeTemperatureKelvin(kelvin: number): number {
+  return Math.min(1, Math.max(0, (kelvin - HADLEY_MODEL.minimumKelvin) / HADLEY_MODEL.temperatureRangeKelvin));
+}

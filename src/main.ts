@@ -1,5 +1,6 @@
 import './styles.css';
 import { App } from './core/App';
+import { startWithErrorBoundary } from './core/startup';
 
 const container = document.querySelector<HTMLElement>('#app');
 
@@ -8,7 +9,7 @@ if (!container) {
 }
 
 const app = new App(container);
-void app.start();
+void startWithErrorBoundary(() => app.start(), error => app.showInitializationError(error));
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => app.dispose());

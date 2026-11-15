@@ -312,11 +312,19 @@ export class App {
       5.1 / (halfFov * Math.max(.35, aspect)) + 2.35);
   }
 
-  private showWebGpuError(): void {
+  showInitializationError(error: unknown): void {
+    this.running = false;
+    this.renderer.setAnimationLoop(null);
+    console.error('Atmospheric globe initialization failed:', error);
+    this.showWebGpuError('The globe could not start its WebGPU renderer. Please reload the page or try another WebGPU-capable browser.');
+  }
+
+  private showWebGpuError(text = 'This prototype requires a browser with WebGPU enabled.'): void {
     this.renderer.domElement.remove();
     const message = document.createElement('p');
     message.className = 'webgpu-error';
-    message.textContent = 'This prototype requires a browser with WebGPU enabled.';
+    message.setAttribute('role', 'alert');
+    message.textContent = text;
     this.container.append(message);
   }
 
