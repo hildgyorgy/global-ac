@@ -34,15 +34,17 @@ at the actual surface radius and fades outward across 0.17 model units. This
 is a graphical bridge across the existing clearance, not a pressure, density
 or temperature field; particle altitude is unchanged and the haze is absent
 from the globe view.
-Its peak opacity is only 0.06, keeping the inner surface edge barely suggested.
+Its peak opacity is 0.10, balancing a soft surface hint with visible haze.
 The rotation axis uses dash–dot marks only in projection; the globe retains
 a continuous gold axis. Tropics and polar circles use short dashes in both
 views. Equator and meridians retain continuous lines. Horse-latitude
 bands are unchanged.
 
-Short left-hand leader tags identify Hadley, Ferrel and Polar cells in both
-hemispheres. Leaders point near each model cell's middle latitude and altitude
-(±15°, ±45°, ±75°), while labels stay outside the particle cloud. They fade
+Left-hand leader tags identify Hadley, Ferrel and Polar cells in both
+hemispheres. Straight radial leaders are normal to the spherical surface
+and point near each model cell's middle latitude and altitude
+(±15°, ±45°, ±75°). The external tags, including the rotation-axis tag,
+remain horizontal; cell labels are offset beyond the particle cloud. They fade
 with the rest of the projection diagram and add no dynamical geometry.
 
 ## Framing and staged transitions

@@ -24,7 +24,7 @@ export class ProjectionAnnotations extends THREE.Group {
     this.label('ANTARCTIC CIRCLE', `${(90 - tilt).toFixed(1)}° S`, -.055, -polarY, .60, 'right');
     this.label('HORSE LATITUDES', '≈30° N', .055, .50, .60, 'left');
     this.label('HORSE LATITUDES', '≈30° S', .055, -.50, .60, 'left');
-    this.label('ROTATION AXIS', '', .13, 1.37, .57, 'left');
+    this.label('ROTATION AXIS', '', .13, 1.37, .57, 'left', false, true);
 
     const material = new THREE.LineBasicNodeMaterial({
       color: 0x9f855d, transparent: true, opacity: .23, depthWrite: false,
@@ -44,9 +44,13 @@ export class ProjectionAnnotations extends THREE.Group {
           + (CONFIG.atmosphere.equatorialShellThickness - CONFIG.atmosphere.polarShellThickness)
           * Math.cos(latitude) ** 2;
         const radius = CONFIG.earth.radius + .018 + thickness * .5;
-        const x = -radius * Math.cos(latitude), y = radius * Math.sin(latitude);
-        leader([[x, y], [x - .18, y]]);
-        this.label(name, '', x - .20, y, .55, 'right');
+        const dx = -Math.cos(latitude), dy = Math.sin(latitude);
+        // Radial leaders meet the spherical surface normally. Keep each
+        // entire horizontal label beyond the atmospheric silhouette.
+        const tagRadius = CONFIG.earth.radius + .50;
+        const x = dx * tagRadius, y = dy * tagRadius;
+        leader([[dx * radius, dy * radius], [x, y]]);
+        this.label(name, '', x, y, .55, 'right', false, true);
       }
     }
   }
@@ -58,7 +62,7 @@ export class ProjectionAnnotations extends THREE.Group {
   }
 
   private label(title: string, subtitle: string, x: number, y: number, width: number,
-    align: 'left' | 'right', flipped = false): THREE.Mesh {
+    align: 'left' | 'right', flipped = false, horizontal = false): THREE.Mesh {
     const canvas = document.createElement('canvas'); canvas.width = Math.round(width * 1280); canvas.height = 192;
     const ctx = canvas.getContext('2d')!;
     ctx.textAlign = align; ctx.textBaseline = 'middle';
@@ -73,7 +77,10 @@ export class ProjectionAnnotations extends THREE.Group {
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, 192 / 1280),
       new THREE.MeshBasicNodeMaterial({ map: this.texture(canvas), transparent: true,
         opacity: .78, depthWrite: false, side: THREE.DoubleSide }));
-    mesh.position.set(x + (align === 'right' ? -width / 2 : width / 2), y, -.080);
+    const angle = horizontal ? -THREE.MathUtils.degToRad(CONFIG.earth.axialTiltDegrees) : 0;
+    const offset = align === 'right' ? -width / 2 : width / 2;
+    mesh.rotation.z = angle;
+    mesh.position.set(x + offset * Math.cos(angle), y + offset * Math.sin(angle), -.080);
     this.add(mesh); return mesh;
   }
 
