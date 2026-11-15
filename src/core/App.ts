@@ -135,6 +135,7 @@ export class App {
     const sun = new THREE.DirectionalLight(0xffd6a1, 2.8);
     // The old fixed sunlight now comes from the visible reading lamp.
     sun.position.copy(this.study.lampPosition);
+    sun.target.position.y = CONFIG.presentation.globeHeight;
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
     sun.shadow.camera.left = -5; sun.shadow.camera.right = 5;
@@ -145,8 +146,10 @@ export class App {
     sun.shadow.radius = 3;
     const lampPool = new THREE.PointLight(0xffc47c, 14, 12, 2);
     lampPool.position.copy(this.study.lampPosition);
-    this.scene.add(ambient, sun, lampPool);
+    this.scene.add(ambient, sun, sun.target, lampPool);
 
+    this.globe.scale.setScalar(CONFIG.presentation.globeScale);
+    this.globe.position.y = CONFIG.presentation.globeHeight;
     this.globe.rotation.z = (CONFIG.earth.axialTiltDegrees * Math.PI) / 180;
     this.rotatingGlobe.add(this.earth, this.particles);
     this.globe.add(this.rotatingGlobe, this.earthSection, this.orientationGuides);
@@ -177,9 +180,9 @@ export class App {
     this.transitionStarted = performance.now();
     this.cameraStart.copy(camera.position);
     this.targetStart.copy(controls.target);
-    this.targetDestination.set(0, enabled ? 0 : CONFIG.camera.targetHeight, 0);
+    this.targetDestination.set(0, enabled ? CONFIG.presentation.globeHeight : CONFIG.camera.targetHeight, 0);
     this.cameraDestination.copy(enabled
-      ? new THREE.Vector3(0, 0, this.sectionCameraDistance)
+      ? new THREE.Vector3(0, CONFIG.presentation.globeHeight, this.sectionCameraDistance)
       : this.savedCameraPosition);
     controls.autoRotate = false;
     controls.maxPolarAngle = enabled ? Math.PI / 2 : 1.45;
@@ -230,7 +233,7 @@ export class App {
     this.renderer.setSize(width, height);
     this.deskControls.resize(width, height);
     if (this.sectionEnabled) {
-      this.cameraRig.camera.position.set(0, 0, this.sectionCameraDistance);
+      this.cameraRig.camera.position.set(0, CONFIG.presentation.globeHeight, this.sectionCameraDistance);
       this.cameraDestination.copy(this.cameraRig.camera.position);
       this.cameraRig.controls.maxDistance = Math.max(
         CONFIG.camera.maxDistance, this.sectionCameraDistance * 1.5,
@@ -241,7 +244,7 @@ export class App {
   private get sectionCameraDistance(): number {
     const aspect = this.container.clientWidth / Math.max(1, this.container.clientHeight);
     // Reserve margin for the full atmospheric cross-section and the brass lever.
-    return Math.max(7.3, 1.85 / (Math.tan(THREE.MathUtils.degToRad(CONFIG.camera.fieldOfView / 2))
+    return Math.max(10.4, 1.85 * CONFIG.presentation.globeScale / (Math.tan(THREE.MathUtils.degToRad(CONFIG.camera.fieldOfView / 2))
       * Math.min(1, aspect)));
   }
 

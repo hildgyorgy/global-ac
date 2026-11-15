@@ -1,6 +1,11 @@
 const cellParticleCounts = { hadley: 25_000, ferrel: 16_667, polar: 6_666 } as const;
 
 export const CONFIG = {
+  presentation: {
+    globeScale: 2,
+    // Keep the lower atmospheric edge floating above the existing brass disc.
+    globeHeight: 1.2,
+  },
   earth: {
     radius: 1,
     axialTiltDegrees: -23.4,
@@ -20,11 +25,11 @@ export const CONFIG = {
     fieldOfView: 40,
     near: 0.05,
     far: 100,
-    distance: 7.8,
-    height: 2.4,
-    targetHeight: -0.55,
-    minDistance: 3.2,
-    maxDistance: 10,
+    distance: 10.4,
+    height: 3.4,
+    targetHeight: 0.6,
+    minDistance: 5.6,
+    maxDistance: 15,
   },
   renderer: {
     maxPixelRatio: 1.75,
