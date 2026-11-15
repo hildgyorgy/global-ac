@@ -239,6 +239,9 @@ export class App {
     this.orientationGuides.setSectionVisible(this.earthSection.visible);
     this.cameraRig.camera.position.lerpVectors(this.cameraStart, this.cameraDestination, eased);
     this.cameraRig.controls.target.lerpVectors(this.targetStart, this.targetDestination, eased);
+    // OrbitControls is suspended during the scripted move, so update the
+    // camera orientation here too rather than snapping it at the last frame.
+    this.cameraRig.camera.lookAt(this.cameraRig.controls.target);
     if (elapsed >= this.morphDuration + this.diagramDuration) {
       this.transitioning = false;
       this.cameraRig.controls.enabled = true;

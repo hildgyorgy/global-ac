@@ -34,8 +34,9 @@ at the actual surface radius and fades outward across 0.17 model units. This
 is a graphical bridge across the existing clearance, not a pressure, density
 or temperature field; particle altitude is unchanged and the haze is absent
 from the globe view.
-The rotation axis uses dash–dot marks, tropics and polar circles short dashes
-in both views. Equator and meridians retain continuous lines. Horse-latitude
+The rotation axis uses dash–dot marks only in projection; the globe retains
+a continuous gold axis. Tropics and polar circles use short dashes in both
+views. Equator and meridians retain continuous lines. Horse-latitude
 bands are unchanged.
 
 ## Framing and staged transitions
@@ -53,6 +54,9 @@ fade away during opening and return during closing. Reversals start from
 current shape, camera and opacity values, so toggling mid-transition does
 not reset them. Scripted camera movement temporarily suspends OrbitControls
 updates to prevent polar-limit clamping during the fade-only phase.
+Camera orientation is explicitly updated toward the interpolated target on
+every transition frame, so resuming OrbitControls does not produce a vertical
+snap after moving the camera position.
 
 Horse latitudes are shown separately as soft illustrative 25–35° bands,
 labelled ≈30° N/S. These indicate the subtropical high-pressure regions near

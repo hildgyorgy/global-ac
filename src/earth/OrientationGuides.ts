@@ -70,10 +70,10 @@ export class OrientationGuides extends THREE.Group {
 
     // Normal depth testing hides the axis inside the solid globe and the far
     // half of the equator behind the Earth.
-    this.globeGuides.add(patternedLine([
+    this.globeGuides.add(line([
       new THREE.Vector3(0, -axisExtent, 0),
       new THREE.Vector3(0, axisExtent, 0),
-    ], axisMaterial, axisPattern));
+    ], axisMaterial));
 
     // The tropics and polar circles follow the same obliquity as the axis.
     const obliquity = Math.abs(CONFIG.earth.axialTiltDegrees);
