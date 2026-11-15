@@ -2,6 +2,7 @@ import * as THREE from 'three/webgpu';
 import { particleRadius } from '../atmosphere/geometry';
 import { CONFIG } from '../config';
 import { JET_STREAMS_MODEL } from '../atmosphere/JetStreamsModel';
+import { createProjectionLine } from './createProjectionLine';
 
 /** Engraved reference labels for the meridional display, in globe coordinates.
  * Geographic parallels are precise; horse latitudes are deliberately soft
@@ -37,18 +38,17 @@ export class ProjectionAnnotations extends THREE.Group {
     this.label('HORSE LATITUDES', '≈30° S', 0.055, -0.5, 0.6, 'left');
     this.label('ROTATION AXIS', '', 0.13, 1.37, 0.57, 'left', false, true);
 
-    const material = new THREE.LineBasicNodeMaterial({
-      color: 0x9f855d,
+    const material = new THREE.Line2NodeMaterial({
+      color: 0xc8a76e,
       transparent: true,
-      opacity: 0.23,
+      opacity: 0.5,
+      linewidth: 1.4,
       depthWrite: false,
     });
     const leader = (points: number[][]) =>
       this.add(
-        new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints(
-            points.map(([x, y]) => new THREE.Vector3(x, y, -0.083)),
-          ),
+        createProjectionLine(
+          points.map(([x, y]) => new THREE.Vector3(x, y, -0.083)),
           material,
         ),
       );
@@ -85,7 +85,6 @@ export class ProjectionAnnotations extends THREE.Group {
 
     // Keep the tags tied to the same core positions used by the wind field.
     // Their radial leaders terminate at the centre of each jet cross-section.
-    const jetMaterial = material.clone();
     for (const hemisphere of [1, -1]) {
       JET_STREAMS_MODEL.bands.forEach((band, index) => {
         const latitude = band.latitude * hemisphere;
@@ -96,9 +95,7 @@ export class ProjectionAnnotations extends THREE.Group {
           .clone()
           .multiplyScalar(CONFIG.earth.radius + 0.55)
           .setZ(-0.078);
-        this.jetAnnotations.add(
-          new THREE.Line(new THREE.BufferGeometry().setFromPoints([core, anchor]), jetMaterial),
-        );
+        this.jetAnnotations.add(createProjectionLine([core, anchor], material));
         const ring = Array.from({ length: 33 }, (_, i) => {
           const angle = (i * Math.PI * 2) / 32;
           return new THREE.Vector3(
@@ -107,9 +104,7 @@ export class ProjectionAnnotations extends THREE.Group {
             core.z,
           );
         });
-        this.jetAnnotations.add(
-          new THREE.Line(new THREE.BufferGeometry().setFromPoints(ring), jetMaterial),
-        );
+        this.jetAnnotations.add(createProjectionLine(ring, material));
         this.jetAnnotations.add(
           this.label(
             index === 0 ? 'SUBTROPICAL JET' : 'POLAR-FRONT JET',

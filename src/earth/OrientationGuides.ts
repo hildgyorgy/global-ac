@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu';
 import { CONFIG } from '../config';
+import { createProjectionLine } from './createProjectionLine';
 
 /** Quiet instrument markings in the globe's own tilted coordinate frame. */
 export class OrientationGuides extends THREE.Group {
@@ -30,13 +31,34 @@ export class OrientationGuides extends THREE.Group {
       opacity: 0.2,
       depthWrite: false,
     });
+    const sectionEquatorMaterial = new THREE.Line2NodeMaterial({
+      color: 0xc4a36e,
+      transparent: true,
+      opacity: 0.46,
+      linewidth: 1.4,
+      depthWrite: false,
+    });
+    const sectionLatitudeMaterial = new THREE.Line2NodeMaterial({
+      color: 0xc4a36e,
+      transparent: true,
+      opacity: 0.42,
+      linewidth: 1.4,
+      depthWrite: false,
+    });
+    const sectionAxisMaterial = new THREE.Line2NodeMaterial({
+      color: 0xcbb17d,
+      transparent: true,
+      opacity: 0.58,
+      linewidth: 1.4,
+      depthWrite: false,
+    });
     const line = (points: THREE.Vector3[], material: THREE.LineBasicNodeMaterial) =>
       new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), material);
     // Static geometric dashes work identically in WebGPU for straight chords
     // and spherical arcs. Pattern distances are measured along the whole path.
     const patternedLine = (
       points: THREE.Vector3[],
-      material: THREE.LineBasicNodeMaterial,
+      material: THREE.LineBasicNodeMaterial | THREE.Line2NodeMaterial,
       pattern: readonly number[],
     ) => {
       const segments: THREE.Vector3[] = [];
@@ -62,7 +84,9 @@ export class OrientationGuides extends THREE.Group {
           }
         }
       }
-      return new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(segments), material);
+      return material instanceof THREE.Line2NodeMaterial
+        ? createProjectionLine(segments, material, true)
+        : new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(segments), material);
     };
     const axisPattern = [0.065, 0.018, 0.007, 0.018];
     const latitudePattern = [0.028, 0.022];
@@ -131,8 +155,8 @@ export class OrientationGuides extends THREE.Group {
       ];
       this.sectionGuides.add(
         degrees === 0
-          ? line(chord, material.clone())
-          : patternedLine(chord, material.clone(), latitudePattern),
+          ? createProjectionLine(chord, sectionEquatorMaterial)
+          : patternedLine(chord, sectionLatitudeMaterial, latitudePattern),
       );
     }
 
@@ -140,7 +164,7 @@ export class OrientationGuides extends THREE.Group {
     this.sectionGuides.add(
       patternedLine(
         [new THREE.Vector3(0, -axisExtent, -0.09), new THREE.Vector3(0, axisExtent, -0.09)],
-        axisMaterial.clone(),
+        sectionAxisMaterial,
         axisPattern,
       ),
     );
@@ -163,8 +187,8 @@ export class OrientationGuides extends THREE.Group {
 
   private setOpacity(group: THREE.Group, opacity: number): void {
     group.traverse((object) => {
-      if (!(object instanceof THREE.Line)) return;
-      const material = object.material as THREE.LineBasicNodeMaterial;
+      if (!(object instanceof THREE.Line || object instanceof THREE.Mesh)) return;
+      const material = object.material as THREE.Material;
       if (!this.referenceOpacities.has(material))
         this.referenceOpacities.set(material, material.opacity);
       material.opacity = this.referenceOpacities.get(material)! * opacity;

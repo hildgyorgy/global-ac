@@ -35,7 +35,10 @@ from the globe view.
 Its peak opacity is 0.10, balancing a soft surface hint with visible haze.
 The rotation axis uses dash–dot marks only in projection; the globe retains
 a continuous gold axis. Tropics and polar circles use short dashes in both
-views. Equator and meridians retain continuous lines. Horse-latitude
+views. Projection strokes and external tag leaders use WebGPU wide-line
+geometry at 1.4 screen pixels, with brighter gold and stronger opacity for
+legibility. Their visibility follows the diagram fade. Globe guides retain
+their own styling. Equator and meridians retain continuous lines. Horse-latitude
 bands are unchanged.
 
 Left-hand leader tags identify Hadley, Ferrel and Polar cells in both
