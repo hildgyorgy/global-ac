@@ -26,7 +26,7 @@ export class EarthSection extends THREE.Group {
       color: 0x79817a, transparent: true, depthWrite: false, side: THREE.DoubleSide,
     });
     hazeMaterial.opacityNode = float(1).sub(positionLocal.xy.length()
-      .sub(CONFIG.earth.radius).div(hazeWidth).clamp(0, 1)).pow(2).mul(.18).mul(this.hazeOpacity);
+      .sub(CONFIG.earth.radius).div(hazeWidth).clamp(0, 1)).pow(2).mul(.06).mul(this.hazeOpacity);
     const haze = new THREE.Mesh(
       new THREE.RingGeometry(CONFIG.earth.radius, CONFIG.earth.radius + hazeWidth, 256, 8),
       hazeMaterial,

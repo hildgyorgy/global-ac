@@ -34,6 +34,21 @@ export class ProjectionAnnotations extends THREE.Group {
     ));
     // Tag the exposed upper shaft, outside both the Earth and polar atmosphere.
     leader([[0, 1.37], [.10, 1.37]]);
+
+    // Name each idealized cell on the left-hand atmospheric limb in both
+    // hemispheres. Short leaders end in the cloud, not at a geographic line.
+    for (const hemisphere of [1, -1]) {
+      for (const [name, degrees] of [['HADLEY CELL', 15], ['FERREL CELL', 45], ['POLAR CELL', 75]] as const) {
+        const latitude = THREE.MathUtils.degToRad(degrees * hemisphere);
+        const thickness = CONFIG.atmosphere.polarShellThickness
+          + (CONFIG.atmosphere.equatorialShellThickness - CONFIG.atmosphere.polarShellThickness)
+          * Math.cos(latitude) ** 2;
+        const radius = CONFIG.earth.radius + .018 + thickness * .5;
+        const x = -radius * Math.cos(latitude), y = radius * Math.sin(latitude);
+        leader([[x, y], [x - .18, y]]);
+        this.label(name, '', x - .20, y, .55, 'right');
+      }
+    }
   }
 
   private texture(canvas: HTMLCanvasElement): THREE.CanvasTexture {
