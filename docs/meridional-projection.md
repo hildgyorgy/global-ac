@@ -24,6 +24,11 @@ names align right just left of the axis; horse-latitude names align left
 just right of it. The rotation-axis tag sits outside the globe beside the
 exposed upper shaft, connected by a short leader.
 
+Each latitude label straddles its marked parallel: the name is above the
+line and the degree value below. The Arctic Circle reverses that ordering
+to keep its longer name inside the globe. Horse-latitude labels similarly
+straddle their soft band centres.
+
 Horse latitudes are shown separately as soft illustrative 25–35° bands,
 labelled ≈30° N/S. These indicate the subtropical high-pressure regions near
 the descending Hadley branches, not fixed geographic boundaries or a

@@ -13,13 +13,14 @@ export class ProjectionAnnotations extends THREE.Group {
     this.addHorseLatitudeBelts();
     const tilt = Math.abs(CONFIG.earth.axialTiltDegrees);
     const tropicY = Math.sin(THREE.MathUtils.degToRad(tilt));
+    const polarY = Math.sin(THREE.MathUtils.degToRad(90 - tilt));
     // Alignment anchors sit immediately beside the rotation axis. The
     // lettering shares the tilted latitude frame instead of facing upright.
-    this.label('ARCTIC CIRCLE', `${(90 - tilt).toFixed(1)}° N`, -.055, .84, .55, 'right');
-    this.label('TROPIC OF CANCER', `${tilt.toFixed(1)}° N`, -.055, tropicY + .07, .65, 'right');
-    this.label('EQUATOR', '0°', -.055, .07, .43, 'right');
-    this.label('TROPIC OF CAPRICORN', `${tilt.toFixed(1)}° S`, -.055, -tropicY + .07, .70, 'right');
-    this.label('ANTARCTIC CIRCLE', `${(90 - tilt).toFixed(1)}° S`, -.055, -.84, .60, 'right');
+    this.label('ARCTIC CIRCLE', `${(90 - tilt).toFixed(1)}° N`, -.055, polarY, .55, 'right', true);
+    this.label('TROPIC OF CANCER', `${tilt.toFixed(1)}° N`, -.055, tropicY, .65, 'right');
+    this.label('EQUATOR', '0°', -.055, 0, .43, 'right');
+    this.label('TROPIC OF CAPRICORN', `${tilt.toFixed(1)}° S`, -.055, -tropicY, .70, 'right');
+    this.label('ANTARCTIC CIRCLE', `${(90 - tilt).toFixed(1)}° S`, -.055, -polarY, .60, 'right');
     this.label('HORSE LATITUDES', '≈30° N', .055, .50, .60, 'left');
     this.label('HORSE LATITUDES', '≈30° S', .055, -.50, .60, 'left');
     this.label('ROTATION AXIS', '', .13, 1.37, .57, 'left');
@@ -41,16 +42,18 @@ export class ProjectionAnnotations extends THREE.Group {
   }
 
   private label(title: string, subtitle: string, x: number, y: number, width: number,
-    align: 'left' | 'right'): THREE.Mesh {
+    align: 'left' | 'right', flipped = false): THREE.Mesh {
     const canvas = document.createElement('canvas'); canvas.width = Math.round(width * 1280); canvas.height = 192;
     const ctx = canvas.getContext('2d')!;
     ctx.textAlign = align; ctx.textBaseline = 'middle';
     const edge = align === 'right' ? canvas.width - 8 : 8;
-    ctx.fillStyle = '#c1a77c'; ctx.font = '52px Georgia, "Times New Roman", serif';
-    ctx.fillText(title, edge, subtitle ? 58 : 96);
+    // The marked parallel passes through the texture centre (y=96): name
+    // above and degrees below. At the Arctic Circle put the name inward.
+    ctx.fillStyle = '#c1a77c'; ctx.font = '44px Georgia, "Times New Roman", serif';
+    ctx.fillText(title, edge, subtitle ? (flipped ? 132 : 60) : 96);
     if (subtitle) {
-      ctx.fillStyle = '#8f805f'; ctx.font = '42px Georgia, "Times New Roman", serif';
-      ctx.fillText(subtitle, edge, 143);
+      ctx.fillStyle = '#8f805f'; ctx.font = '35px Georgia, "Times New Roman", serif';
+      ctx.fillText(subtitle, edge, flipped ? 60 : 132);
     }
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, 192 / 1280),
       new THREE.MeshBasicNodeMaterial({ map: this.texture(canvas), transparent: true,
