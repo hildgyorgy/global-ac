@@ -72,7 +72,10 @@ export class App {
       { label: 'Coriolis' },
     );
     this.jetsSwitch = new SectionSwitch(
-      (enabled) => this.particles.setJetsEnabled(enabled), { label: 'Jet-streams' },
+      (enabled) => {
+        this.particles.setJetsEnabled(enabled);
+        this.earthSection.setJetsEnabled(enabled);
+      }, { label: 'Jet-streams' },
     );
     this.instrumentControls.className = 'instrument-controls';
     this.resetButton.type = 'button';

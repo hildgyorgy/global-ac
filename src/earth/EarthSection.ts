@@ -40,6 +40,8 @@ export class EarthSection extends THREE.Group {
 
   setDiagramOpacity(opacity: number): void { this.annotations.setOpacity(opacity); }
 
+  setJetsEnabled(enabled: boolean): void { this.annotations.setJetsEnabled(enabled); }
+
   setOpeningProgress(progress: number): void {
     const t = THREE.MathUtils.clamp((progress - .55) / .45, 0, 1);
     const fade = t * t * (3 - 2 * t);

@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu';
 import { CONFIG } from '../config';
+import { JET_STREAMS_MODEL } from '../atmosphere/JetStreamsModel';
 
 /** Engraved reference labels for the meridional display, in globe coordinates.
  * Geographic parallels are precise; horse latitudes are deliberately soft
@@ -8,6 +9,7 @@ import { CONFIG } from '../config';
 export class ProjectionAnnotations extends THREE.Group {
   private readonly textures: THREE.CanvasTexture[] = [];
   private readonly referenceOpacities = new Map<THREE.Material, number>();
+  private readonly jetAnnotations = new THREE.Group();
 
   constructor() {
     super();
@@ -53,7 +55,39 @@ export class ProjectionAnnotations extends THREE.Group {
         this.label(name, '', x, y, .55, 'right', false, true);
       }
     }
+
+    // Keep the tags tied to the same core positions used by the wind field.
+    // Their radial leaders terminate at the centre of each jet cross-section.
+    const jetMaterial = material.clone();
+    for (const hemisphere of [1, -1]) {
+      JET_STREAMS_MODEL.bands.forEach((band, index) => {
+        const latitude = band.latitude * hemisphere;
+        const thickness = CONFIG.atmosphere.polarShellThickness
+          + (CONFIG.atmosphere.equatorialShellThickness - CONFIG.atmosphere.polarShellThickness)
+          * Math.cos(latitude) ** 2;
+        const radius = CONFIG.earth.radius + .018 + thickness * band.coreAltitude;
+        const direction = new THREE.Vector3(-Math.cos(latitude), Math.sin(latitude), 0);
+        const core = direction.clone().multiplyScalar(radius).setZ(-.078);
+        const anchor = direction.clone().multiplyScalar(CONFIG.earth.radius + .55).setZ(-.078);
+        this.jetAnnotations.add(new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([core, anchor]), jetMaterial,
+        ));
+        const ring = Array.from({ length: 33 }, (_, i) => {
+          const angle = i * Math.PI * 2 / 32;
+          return new THREE.Vector3(core.x + .009 * Math.cos(angle), core.y + .009 * Math.sin(angle), core.z);
+        });
+        this.jetAnnotations.add(new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints(ring), jetMaterial,
+        ));
+        this.jetAnnotations.add(this.label(index === 0 ? 'SUBTROPICAL JET' : 'POLAR-FRONT JET',
+          '', anchor.x, anchor.y, .80, 'right', false, true));
+      });
+    }
+    this.jetAnnotations.visible = false;
+    this.add(this.jetAnnotations);
   }
+
+  setJetsEnabled(enabled: boolean): void { this.jetAnnotations.visible = enabled; }
 
   private texture(canvas: HTMLCanvasElement): THREE.CanvasTexture {
     const texture = new THREE.CanvasTexture(canvas);

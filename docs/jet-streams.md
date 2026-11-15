@@ -68,6 +68,12 @@ preserve both jet and Coriolis state. The strongest directional impression
 is in 3D: a meridional projection intentionally collapses east–west motion,
 though faster tracers still enter and leave its selected longitude wedge.
 
+When jets are enabled, the projection labels each left-limb jet core in both
+hemispheres: SUBTROPICAL JET and POLAR-FRONT JET. Horizontal gold tags use
+radial leaders and small centre rings, anchored to the wind model's latitude
+and altitude rather than independently positioned points. They share the
+diagram's transition opacity and disappear when jets are disabled.
+
 ## Validation
 
 - `pnpm run test:physics`: seven tests cover off-state identity, lower-air
