@@ -5,6 +5,7 @@ import {
   mix, uniform, varying, vec4, vertexIndex,
 } from 'three/tsl';
 import { cellFocusNode } from './CellSelectionNode';
+import { meridionalProjectionNode } from './MeridionalProjectionNode';
 
 const STRIDE = 24;
 const SAMPLES = 24;
@@ -24,7 +25,7 @@ export class GpuParticleTrails extends THREE.LineSegments<THREE.BufferGeometry, 
     particleCount: number,
     positions: StorageBufferNode<'vec4'>,
     velocities: StorageBufferNode<'vec4'>,
-    sliceHalfWidth: Node<'float'>,
+    projectionProgress: Node<'float'>,
     spinAngle: Node<'float'>,
     sectionBrightness: Node<'float'>,
     selectedCell: Node<'float'>,
@@ -82,16 +83,16 @@ export class GpuParticleTrails extends THREE.LineSegments<THREE.BufferGeometry, 
     const slicePosition = varying(trailPoint.xyz);
     const latitude = slicePosition.y.div(slicePosition.length().max(0.001)).clamp(-1, 1).asin();
     const focus = cellFocusNode(latitude, selectedCell);
-    const sectionDepth = slicePosition.z.mul(spinAngle.cos()).sub(slicePosition.x.mul(spinAngle.sin()));
-    const sliceVisibility = float(1).sub(sectionDepth.abs().smoothstep(sliceHalfWidth.sub(0.018), sliceHalfWidth));
+    const projection = meridionalProjectionNode(trailPoint.xyz, spinAngle, projectionProgress);
+    const visibility = varying(projection.visibility);
 
     const material = new THREE.LineBasicNodeMaterial({
       transparent: true, depthWrite: false, depthTest: true,
       blending: THREE.AdditiveBlending,
     });
-    material.positionNode = trailPoint.xyz;
+    material.positionNode = projection.position;
     material.colorNode = temperatureColor.mul(sectionBrightness).mul(1.35).mul(focus);
-    material.opacityNode = fade.mul(lifeFade).mul(sliceVisibility).mul(0.72);
+    material.opacityNode = fade.mul(lifeFade).mul(visibility).mul(0.72);
     const geometry = new THREE.BufferGeometry();
     // Only topology lives on the CPU. All animated vertex positions come from
     // GPU storage via vertexIndex; no history is read back or uploaded per frame.

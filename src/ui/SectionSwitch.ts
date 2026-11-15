@@ -3,7 +3,7 @@ export class SectionSwitch {
   readonly element = document.createElement('button');
 
   constructor(private readonly onChange: (enabled: boolean) => void, options = {
-    label: 'Metszetnézet', off: 'Glóbusz', on: 'Metszet',
+    label: 'Meridionális vetület – 45 fokos sáv', off: 'Glóbusz', on: 'Vetület',
   }) {
     this.element.className = 'section-switch';
     this.element.type = 'button';

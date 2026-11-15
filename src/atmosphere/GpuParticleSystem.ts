@@ -24,6 +24,7 @@ import { CORIOLIS_MODEL } from './CoriolisModel';
 import { coriolisVisualScaleNode, zonalCoriolisAccelerationNode } from './CoriolisNode';
 import { GpuParticleTrails } from './GpuParticleTrails';
 import { cellFocusNode } from './CellSelectionNode';
+import { meridionalProjectionNode } from './MeridionalProjectionNode';
 
 // Keep only a numerical epsilon at latitude separatrices, not visible gaps.
 const LATITUDE_EPSILON = 0.0001;
@@ -32,7 +33,7 @@ const MAX_ALTITUDE = 0.96;
 
 export class GpuParticleSystem extends THREE.Sprite {
   readonly trails: GpuParticleTrails;
-  private readonly sliceHalfWidth;
+  private readonly projectionProgress;
   private readonly sectionBrightness;
   private readonly coriolisStrength;
   private readonly spinAngle;
@@ -42,7 +43,7 @@ export class GpuParticleSystem extends THREE.Sprite {
 
   constructor() {
     const count = CONFIG.atmosphere.particleCount;
-    const sliceHalfWidth = uniform(2);
+    const projectionProgress = uniform(0);
     const sectionBrightness = uniform(1);
     const coriolisStrength = uniform(0);
     const spinAngle = uniform(0);
@@ -217,25 +218,17 @@ export class GpuParticleSystem extends THREE.Sprite {
       .mul(0.08)
       .add(0.92);
     const lifeFade = float(particlePosition.w).clamp(0, 0.24).div(0.24);
-    // Slice stays in the tilted globe frame while particles and the surface
-    // rotate through it. Rotate each center into that frame before filtering.
-    const sectionDepth = float(particlePosition.z).mul(spinAngle.cos())
-      .sub(float(particlePosition.x).mul(spinAngle.sin()));
-    const sliceVisibility = float(1).sub(
-      sectionDepth.abs().smoothstep(
-        sliceHalfWidth.sub(0.018), sliceHalfWidth,
-      ),
-    );
+    const projection = meridionalProjectionNode(particlePosition.xyz, spinAngle, projectionProgress);
 
     const material = new THREE.SpriteNodeMaterial();
     const focus = cellFocusNode(float(sphericalState.toAttribute().x), selectedCell);
-    material.positionNode = particlePosition.xyz;
+    material.positionNode = projection.position;
     material.scaleNode = float(CONFIG.atmosphere.particleSize);
     material.colorNode = particleColor.mul(0.9).mul(sectionBrightness).mul(focus);
     material.opacityNode = (shapeCircle() as Node<'float'>)
       .mul(shimmer)
       .mul(lifeFade)
-      .mul(sliceVisibility)
+      .mul(projection.visibility)
       .mul(0.68);
     material.transparent = true;
     material.depthWrite = false;
@@ -244,9 +237,9 @@ export class GpuParticleSystem extends THREE.Sprite {
     material.alphaToCoverage = true;
 
     super(material);
-    this.trails = new GpuParticleTrails(count, positions, velocities, sliceHalfWidth, spinAngle, sectionBrightness, selectedCell);
+    this.trails = new GpuParticleTrails(count, positions, velocities, projectionProgress, spinAngle, sectionBrightness, selectedCell);
     this.add(this.trails);
-    this.sliceHalfWidth = sliceHalfWidth;
+    this.projectionProgress = projectionProgress;
     this.sectionBrightness = sectionBrightness;
     this.coriolisStrength = coriolisStrength;
     this.spinAngle = spinAngle;
@@ -270,8 +263,8 @@ export class GpuParticleSystem extends THREE.Sprite {
   }
 
   setSectionProgress(progress: number): void {
-    this.sliceHalfWidth.value = 2 + (0.09 - 2) * progress;
-    this.sectionBrightness.value = 1 + progress * 1.4;
+    this.projectionProgress.value = progress;
+    this.sectionBrightness.value = 1 + progress * 0.6;
   }
 
   setCoriolisEnabled(enabled: boolean): void {
