@@ -10,6 +10,16 @@ export class LibraryStudy extends THREE.Group {
   readonly lampPosition = new THREE.Vector3(...SEASON_MODEL.lampPosition);
   readonly seasonAnchor = new THREE.Group();
   readonly controlAnchor = new THREE.Group();
+  readonly lampSwitch: THREE.Mesh;
+  private readonly lampBulbMaterial = new THREE.MeshBasicNodeMaterial({ color: 0xffd69c });
+  private readonly lampShadeGlowMaterial = new THREE.MeshBasicNodeMaterial({
+    color: 0xffc777,
+    transparent: true,
+    opacity: 0.42,
+    side: THREE.DoubleSide,
+  });
+  private lampOn = true;
+  private illumination = 1;
   private readonly textures: THREE.Texture[] = [];
   private readonly brass = new THREE.MeshStandardNodeMaterial({
     color: 0x927044,
@@ -55,6 +65,7 @@ export class LibraryStudy extends THREE.Group {
     this.seasonAnchor.position.y = SEASON_MODEL.anchorHeight;
     this.add(this.seasonAnchor);
     this.createLamp();
+    this.lampSwitch = this.createLampSwitch();
     this.createParchment(-2.45, 1.05, -0.23);
     this.createInkAndQuill();
     this.createBookStack(-2.8, -1.3);
@@ -84,11 +95,43 @@ export class LibraryStudy extends THREE.Group {
   }
 
   setIllumination(level: number): void {
+    this.illumination = level;
     for (const [material, intensity] of this.materialDimmers)
       material.emissiveIntensity = intensity * level;
     // Includes the visible bulb, the warm shade underside and plate light pool.
     for (const [material, color] of this.unlitDimmers)
       material.color.copy(color).multiplyScalar(level);
+    this.updateLampAppearance();
+  }
+
+  setLampOn(on: boolean): void {
+    this.lampOn = on;
+    this.lampSwitch.position.y = DESK_Y + (on ? 0.132 : 0.105);
+    this.updateLampAppearance();
+  }
+
+  private updateLampAppearance(): void {
+    const level = this.illumination * (this.lampOn ? 1 : 0.08);
+    this.lampBulbMaterial.color.set(0xffd69c).multiplyScalar(level);
+    this.lampShadeGlowMaterial.color.set(0xffc777).multiplyScalar(level);
+  }
+
+  private createLampSwitch(): THREE.Mesh {
+    const x = this.lampPosition.x + 0.17;
+    const z = this.lampPosition.z + 0.12;
+    this.cylinder(0.095, 0.018, this.darkBrass, x, DESK_Y + 0.115, z);
+    const switchMesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.065, 0.065, 0.055, 24),
+      new THREE.MeshStandardNodeMaterial({
+        color: 0xc6a46b,
+        metalness: 0.65,
+        roughness: 0.3,
+      }),
+    );
+    switchMesh.position.set(x, DESK_Y + 0.132, z);
+    switchMesh.castShadow = true;
+    this.add(switchMesh);
+    return switchMesh;
   }
 
   private random(): number {
@@ -339,18 +382,13 @@ export class LibraryStudy extends THREE.Group {
     this.add(rim);
     const bulb = new THREE.Mesh(
       new THREE.SphereGeometry(0.095, 16, 12),
-      new THREE.MeshBasicNodeMaterial({ color: 0xffd69c }),
+      this.lampBulbMaterial,
     );
     bulb.position.copy(this.lampPosition);
     this.add(bulb);
     const underShade = new THREE.Mesh(
       new THREE.CircleGeometry(0.39, 48),
-      new THREE.MeshBasicNodeMaterial({
-        color: 0xffc777,
-        transparent: true,
-        opacity: 0.42,
-        side: THREE.DoubleSide,
-      }),
+      this.lampShadeGlowMaterial,
     );
     underShade.rotation.x = Math.PI / 2;
     underShade.position.set(x, 1.67, z);

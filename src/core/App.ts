@@ -28,6 +28,16 @@ export class App {
   private readonly rotatingGlobe = new THREE.Group();
   private readonly study = new LibraryStudy();
   private readonly roomLights: { light: THREE.Light; intensity: number }[] = [];
+  private lampPool!: THREE.PointLight;
+  private solarLight!: THREE.DirectionalLight;
+  private windowLight!: THREE.SpotLight;
+  private roomAmbient!: THREE.AmbientLight;
+  private lampOn = true;
+  private daylightMix = 0;
+  private readonly lampSwitchButton = document.createElement('button');
+  private readonly switchRaycaster = new THREE.Raycaster();
+  private readonly switchPointer = new THREE.Vector2();
+  private switchPress: { id: number; x: number; y: number } | null = null;
   private readonly deskControls: DeskControls;
   private readonly seasonDial: SeasonDial;
   private seasonProgress = 0;
@@ -107,6 +117,16 @@ export class App {
       this.resetButton,
     );
     this.configureScene();
+    this.lampSwitchButton.type = 'button';
+    this.lampSwitchButton.className = 'lamp-switch-accessible';
+    this.lampSwitchButton.textContent = 'Lamp / window light';
+    this.lampSwitchButton.setAttribute('aria-label', 'Turn reading lamp off and show window light');
+    this.lampSwitchButton.setAttribute('aria-pressed', 'false');
+    this.lampSwitchButton.addEventListener('click', this.toggleLamp);
+    this.instrumentControls.append(this.lampSwitchButton);
+    this.renderer.domElement.addEventListener('pointerdown', this.switchDown, true);
+    window.addEventListener('pointerup', this.switchUp, true);
+    window.addEventListener('pointercancel', this.switchCancel, true);
     this.seasonDial = new SeasonDial({
       anchor: this.study.seasonAnchor,
       canvas: this.renderer.domElement,
@@ -164,6 +184,10 @@ export class App {
     this.jetsSwitch.dispose();
     this.anticycloneSwitch.dispose();
     this.resetButton.removeEventListener('click', this.resetView);
+    this.lampSwitchButton.removeEventListener('click', this.toggleLamp);
+    this.renderer.domElement.removeEventListener('pointerdown', this.switchDown, true);
+    window.removeEventListener('pointerup', this.switchUp, true);
+    window.removeEventListener('pointercancel', this.switchCancel, true);
     this.instrumentControls.remove();
     this.deskControls.dispose();
     this.seasonDial.dispose();
@@ -209,7 +233,18 @@ export class App {
     sun.shadow.radius = 3;
     const lampPool = new THREE.PointLight(0xffc47c, 14, 12, 2);
     lampPool.position.copy(this.study.lampPosition);
-    this.scene.add(ambient, sun, sun.target, lampPool);
+    const windowLight = new THREE.SpotLight(0xd8eaff, 0, 13, Math.PI / 6, 0.65, 1.25);
+    windowLight.position.set(this.study.lampPosition.x, 4.8, this.study.lampPosition.z);
+    windowLight.target.position.set(-0.1, -1.5, 0.4);
+    windowLight.castShadow = true;
+    windowLight.shadow.mapSize.set(1024, 1024);
+    windowLight.shadow.normalBias = 0.03;
+    windowLight.shadow.radius = 3;
+    this.scene.add(ambient, sun, sun.target, lampPool, windowLight, windowLight.target);
+    this.roomAmbient = ambient;
+    this.solarLight = sun;
+    this.lampPool = lampPool;
+    this.windowLight = windowLight;
     for (const light of [ambient, sun, lampPool]) {
       this.roomLights.push({ light, intensity: light.intensity });
     }
@@ -235,6 +270,7 @@ export class App {
     this.particles.compute(this.renderer);
     this.updateSectionTransition();
     this.updateSeason();
+    this.updateLighting(delta);
     // The scripted transition owns the camera until both phases finish.
     // OrbitControls would otherwise clamp the front-facing camera as soon
     // as the reverse toggle restores the globe's polar-angle limit.
@@ -250,6 +286,64 @@ export class App {
     // Reclosing restores the chosen three-dimensional instrument setting.
     this.globe.rotation.y = shortYaw * (1 - THREE.MathUtils.smoothstep(this.sectionProgress, 0, 1));
     this.seasonDial.setEnabled(!this.sectionEnabled && !this.transitioning);
+  }
+
+  private toggleLamp = (): void => {
+    this.lampOn = !this.lampOn;
+    this.study.setLampOn(this.lampOn);
+    this.lampSwitchButton.setAttribute('aria-pressed', String(!this.lampOn));
+    this.lampSwitchButton.setAttribute(
+      'aria-label',
+      this.lampOn ? 'Turn reading lamp off and show window light' : 'Turn reading lamp on',
+    );
+  };
+
+  private switchDown = (event: PointerEvent): void => {
+    if (event.button !== 0 || !this.running || this.transitioning || this.sectionEnabled) return;
+    if (!this.switchHit(event.clientX, event.clientY)) return;
+    this.switchPress = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    event.stopImmediatePropagation();
+    event.preventDefault();
+  };
+
+  private switchUp = (event: PointerEvent): void => {
+    const press = this.switchPress;
+    if (!press || press.id !== event.pointerId) return;
+    this.switchPress = null;
+    if (
+      Math.hypot(event.clientX - press.x, event.clientY - press.y) < 8 &&
+      this.switchHit(event.clientX, event.clientY)
+    )
+      this.toggleLamp();
+    event.stopImmediatePropagation();
+    event.preventDefault();
+  };
+
+  private switchCancel = (): void => {
+    this.switchPress = null;
+  };
+
+  private switchHit(x: number, y: number): boolean {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.switchPointer.set(
+      ((x - rect.left) / rect.width) * 2 - 1,
+      -((y - rect.top) / rect.height) * 2 + 1,
+    );
+    this.switchRaycaster.setFromCamera(this.switchPointer, this.cameraRig.camera);
+    return this.switchRaycaster.intersectObject(this.study.lampSwitch, false).length > 0;
+  }
+
+  private updateLighting(delta: number): void {
+    const target = this.lampOn ? 0 : 1;
+    this.daylightMix += (target - this.daylightMix) * (1 - Math.exp(-delta * 3));
+    const mix = this.daylightMix;
+    const visibility = 1 - this.sectionProgress;
+    this.lampPool.intensity = 14 * (1 - mix) * visibility;
+    this.windowLight.intensity = 38 * mix * visibility;
+    this.roomAmbient.intensity = (0.22 + 0.12 * mix) * visibility;
+    this.solarLight.intensity = (2.8 + 0.85 * mix) * visibility;
+    this.solarLight.color.set(0xffd6a1).lerp(new THREE.Color(0xe4eeff), mix);
+    this.renderer.toneMappingExposure = 1.05 + 0.12 * mix;
   }
 
   private setSectionEnabled = (enabled: boolean): void => {

@@ -81,3 +81,23 @@ noscript {
   white-space: nowrap;
   border: 0;
 }
+.lamp-switch-accessible {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.lamp-switch-accessible:focus-visible {
+  width: auto;
+  height: auto;
+  opacity: 1;
+  overflow: visible;
+  z-index: 20;
+  padding: 0.5rem;
+  background: #392d20;
+  color: #f4dfb5;
+}
