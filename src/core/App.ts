@@ -123,7 +123,6 @@ export class App {
     this.lampSwitchButton.setAttribute('aria-label', 'Turn reading lamp off and show window light');
     this.lampSwitchButton.setAttribute('aria-pressed', 'false');
     this.lampSwitchButton.addEventListener('click', this.toggleLamp);
-    this.instrumentControls.append(this.lampSwitchButton);
     this.renderer.domElement.addEventListener('pointerdown', this.switchDown, true);
     window.addEventListener('pointerup', this.switchUp, true);
     window.addEventListener('pointercancel', this.switchCancel, true);
@@ -146,6 +145,7 @@ export class App {
       this.renderer.domElement,
       this.cameraRig.camera,
     );
+    container.append(this.lampSwitchButton);
     this.cellSelection = new CellSelection(
       this.renderer.domElement,
       this.cameraRig.camera,
@@ -185,6 +185,7 @@ export class App {
     this.anticycloneSwitch.dispose();
     this.resetButton.removeEventListener('click', this.resetView);
     this.lampSwitchButton.removeEventListener('click', this.toggleLamp);
+    this.lampSwitchButton.remove();
     this.renderer.domElement.removeEventListener('pointerdown', this.switchDown, true);
     window.removeEventListener('pointerup', this.switchUp, true);
     window.removeEventListener('pointercancel', this.switchCancel, true);

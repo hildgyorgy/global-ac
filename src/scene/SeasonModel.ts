@@ -10,7 +10,7 @@ export const SEASON_MODEL = {
   trackRadius:
     (CONFIG.presentation.globeHeight - anchorHeight - handleHeight) *
     Math.tan((Math.abs(CONFIG.earth.axialTiltDegrees) * Math.PI) / 180),
-  lampPosition: [-3.25, 1.75, 0.9] as const,
+  lampPosition: [-3.7, 1.75, 0.9] as const,
 } as const;
 
 /** Yaw the tilted instrument relative to a fixed, horizontal solar key.
