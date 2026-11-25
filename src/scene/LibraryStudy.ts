@@ -380,10 +380,7 @@ export class LibraryStudy extends THREE.Group {
     rim.rotation.x = Math.PI / 2;
     rim.position.set(x, 1.66, z);
     this.add(rim);
-    const bulb = new THREE.Mesh(
-      new THREE.SphereGeometry(0.095, 16, 12),
-      this.lampBulbMaterial,
-    );
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.095, 16, 12), this.lampBulbMaterial);
     bulb.position.copy(this.lampPosition);
     this.add(bulb);
     const underShade = new THREE.Mesh(
